@@ -1,6 +1,6 @@
 pub fn add(left: usize, right: usize) -> usize {
-    return left + right;
-} 
+    left + right
+}
 
 #[cfg(test)]
 mod tests {
