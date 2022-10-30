@@ -1,55 +1,66 @@
 use crate::data_structures::graph::Graph;
 
-pub fn depth_first_search_recursive(g: &Graph) {
-    let mut colors = vec![0 as u8; g.nodes.len()];
+pub fn depth_first_search(g: &Graph) {
+    let mut colors = vec![0 as u8; g.nodes.len()]; // white
     for n in 0..(g.nodes.len()) {
         if colors[g.nodes[n] as usize] == 0 {
-            process_rec(g, n as u32, &mut colors);
+            process(g, n as u32, &mut colors);
         }
     }
 }
 
-fn process_rec(g: &Graph, n: u32, colors: &mut Vec<u8>) {
-    colors[n as usize] = 1;
+fn process(g: &Graph, n: u32, colors: &mut Vec<u8>) {
+    let mut stack: Vec<(u32, u32)> = Vec::with_capacity(g.nodes.len());
+    let mut pos = 0;
+    push_to_stack(&mut pos, &mut stack, (n, 1));
 
-    let mut k = 0;
-    let neighbors = g.neighbors(n);
-    while k < neighbors.len() {
-        let v = neighbors[k];
-        if  colors[v as usize] == 0  {
-            process_rec(g, v, colors);   
-        }
-        k = k + 1;
-    }
-    colors[n as usize]= 2;
-}
-
-pub fn depth_first_search_iter(g: &Graph) {
-    let mut colors = vec![0 as u8; g.nodes.len()];
-    for n in 0..(g.nodes.len()) {
-        if colors[g.nodes[n] as usize] == 0 {
-            process_iter(g, n as u32, &mut colors);
-        }
-    }
-}
-
-fn process_iter(g: &Graph, n: u32, colors: &mut Vec<u8>) {
-    let mut stack = vec![(n, 1)];
     while stack.len() != 0 {
-        let temp = stack.pop().unwrap();
-        colors[temp.0 as usize] = 1;
+        let temp = pop_from_stack(&mut stack, colors);
+        colors[temp.0 as usize] = 1; // gray
         let neighbors = g.neighbors(temp.0);
-        if temp.1 <= neighbors.len() {
-            stack.push((temp.0, temp.1 + 1));
-            if colors[neighbors[temp.1] as usize] == 0 {
-                stack.push((neighbors[temp.1], 1));
+
+        if temp.1 <= (neighbors.len() as u32) {
+            push_to_stack(&mut pos, &mut stack, (temp.0, temp.1 + 1)); 
+
+            if colors[neighbors[temp.1 as usize] as usize] == 0 {
+                push_to_stack(&mut pos, &mut stack, (neighbors[temp.1 as usize], 1));
             }
+
         } else {
-            colors[temp.0 as usize] = 2;
+            colors[temp.0 as usize] = 2; // black
         }
         
     }
 
+}
+
+pub fn push_to_stack(pos: &mut usize, stack: &mut Vec<(u32, u32)>, to_push: (u32, u32)) {
+    if *pos >= stack.len() {
+        for i in 0..(stack.len() / 2) {
+            stack[i] = (0, 0);
+        }
+        stack[0] = to_push;
+        *pos = 1;
+    }
+    stack[*pos] = to_push;
+    *pos += 1;
+}
+
+pub fn pop_from_stack(stack: &mut Vec<(u32, u32)>, colors: &mut Vec<u8>) -> (u32, u32) {
+    if stack.len() == 0 {
+        restore_segment(colors, stack);
+    }
+    stack.pop().unwrap()
+}
+
+fn restore_segment(colors: &mut Vec<u8>, stack: &mut Vec<(u32, u32)>) {
+    for c in colors {
+        if *c == (1 as u8) {
+            *c = 0;
+        }
+    }
+
+    //TODO: dfs neu starten bis S' und T gleich sind(wie komm ich auf t?)
 }
 
 #[cfg(test)]

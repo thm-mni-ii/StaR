@@ -7,11 +7,11 @@ impl Graph {
     pub fn neighbors(&self, index: u32) -> Vec<u32> {
         let edges_containing_index: Vec<&(u32, u32)> = self.edges
             .iter()
-            .filter(|e| e.0 == index || e.1 == index)
+            .filter(|e| e.0 == index)
             .collect();
         let other_nodes: Vec<u32> = edges_containing_index
             .iter()
-            .map(|e| if e.0 == index {e.1} else {e.0})
+            .map(|e| e.1)
             .collect();
 
         other_nodes
@@ -40,7 +40,7 @@ impl Graph {
                 .map(|n| *n)
                 .collect();
         } else {
-            print!("Knoten {} existiert nicht", node);
+            println!("Knoten {} existiert nicht", node);
         }
 
     }
