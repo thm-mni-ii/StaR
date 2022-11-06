@@ -3,16 +3,16 @@ use crate::data_structures::graph::Graph;
 pub fn depth_first_search(g: &Graph, preprocess: fn(stack: &mut Vec<(u32, u32)>, t: &mut Vec<(u32, u32)>) -> bool) {
     let mut colors = vec![0 as u8; g.nodes.len()]; // white
     for n in 0..(g.nodes.len() - 1) {
-        if colors[g.nodes[n] as usize] == 0 {
-            process(g, g.nodes[n as usize], &mut colors);
+        if colors[n] == 0 {
+            process(g, n, &mut colors);
         }
     }
 }
 
-fn process(g: &Graph, n: u32, colors: &mut Vec<u8>) {
-    let mut stack: Vec<(u32, u32)> = Vec::with_capacity(g.nodes.len());
-    let mut t: Vec<(u32, u32)> = Vec::new();
-    push_to_stack( &mut stack, &mut t, (n, 0));
+fn process(g: &Graph, node_index: usize, colors: &mut Vec<u8>) {
+    let mut stack: Vec<(usize, u32)> = Vec::with_capacity(g.nodes.len());
+    let mut t: Vec<(usize, u32)> = Vec::new();
+    push_to_stack( &mut stack, &mut t, (node_index, 0));
 
     while stack.len() != 0 {
         println!("stack: {:?}, t: {:?}", stack, t);
@@ -35,7 +35,7 @@ fn process(g: &Graph, n: u32, colors: &mut Vec<u8>) {
 
 }
 
-pub fn push_to_stack(stack: &mut Vec<(u32, u32)>, t: &mut Vec<(u32, u32)>, to_push: (u32, u32)) {
+pub fn push_to_stack(stack: &mut Vec<(usize, u32)>, t: &mut Vec<(usize, u32)>, to_push: (usize, u32)) {
     if stack.len() >= stack.capacity() {
         println!("overflow");
         *stack= Vec::with_capacity(stack.capacity());
@@ -43,16 +43,15 @@ pub fn push_to_stack(stack: &mut Vec<(u32, u32)>, t: &mut Vec<(u32, u32)>, to_pu
     stack.push(to_push);
 
     if stack.len() == stack.capacity() || stack.len() == stack.capacity() / 2 {
-        println!("stack länge: {}, kapazität: {}", stack.len(), stack.capacity());
         t.push(to_push);
     }
 }
 
-pub fn pop_from_stack(stack: &mut Vec<(u32, u32)>, t: &mut Vec<(u32, u32)>, colors: &mut Vec<u8>, g: &Graph) -> (u32, u32) {
+pub fn pop_from_stack(stack: &mut Vec<(usize, u32)>, t: &mut Vec<(usize, u32)>, colors: &mut Vec<u8>, g: &Graph) -> (usize, u32) {
     if stack.len() == 0 {
         //restore_segment(colors, t, stack, g);
     }
-    if (stack.len() == stack.capacity() || stack.len() == stack.capacity() / 2) {
+    if stack.len() == stack.capacity() || stack.len() == stack.capacity() / 2 {
         t.pop().unwrap();
     }
     stack.pop().unwrap()
@@ -76,8 +75,9 @@ mod tests {
     #[test]
     fn test_dfs() {
         let graph = Graph {
-            nodes: vec![0, 1, 2, 3, 4, 5],
-            edges: vec![(0, 2), (1, 2), (2, 1), (3, 4), (4, 0), (1, 1), (1, 2), (1, 3), (1, 4)],
+            labels: vec!["1".to_string(), "2".to_string(), "3".to_string(), "4".to_string(), "5".to_string(), "6".to_string()],
+            nodes: vec![0, 0, 0, 0, 0, 0],
+            edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
         };
         depth_first_search(&graph, |_, _| true);
     }
