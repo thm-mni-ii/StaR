@@ -65,3 +65,35 @@ impl Graph {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::data_structures::graph::Graph;
+
+    #[test]
+    fn test_neigbors_empty() {
+        let graph = Graph {
+            nodes: vec![0, 1, 2, 3, 4, 5],
+            edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
+        };
+        assert_eq!(graph.neighbors(5), []);
+    }
+
+    #[test]
+    fn test_neigbors_multiple() {
+        let graph = Graph {
+            nodes: vec![0, 1, 2, 3, 4, 5],
+            edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
+        };
+        assert_eq!(graph.neighbors(0), [3, 2]);
+    }
+
+    #[test]
+    fn test_neigbors_one() {
+        let graph = Graph {
+            nodes: vec![0, 1, 2, 3, 4, 5],
+            edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
+        };
+        assert_eq!(graph.neighbors(1), [4]);
+    }
+}
