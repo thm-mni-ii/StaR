@@ -1,12 +1,22 @@
 use core::panic;
+use crate::algorithms::dfs::*;
 
-pub struct Graph {
-    pub labels: Vec<String>,
+pub struct Graph<'b> {
+    pub labels: Vec<&'b str>,
     pub nodes: Vec<u8>, //0: valid entry, 1: invalid entry
     pub edges: Vec<(u32, u32)>,
 }
 
-impl Graph {
+impl<'b> Graph<'b> {
+    pub fn dfs_preprocess(&self) -> DFSPreprocess {
+        let len = self.nodes.len();
+        DFSPreprocess {
+            graph: self,
+            stack: Vec::with_capacity(len),
+            t: Vec::new(),
+            colors: vec![0 as u8; len]
+        }
+    }
 
     //returns indices of nodes neighboring the given node
     pub fn neighbors(&self, index: usize) -> Vec<usize> {
@@ -28,10 +38,9 @@ impl Graph {
         other_nodes
     }
 
-    pub fn add_node(&mut self, label: String, edges: Vec<(u32, u32)>) {
-        self.labels.push(label);
+    pub fn add_node(&mut self, label: &'b str, edges: Vec<(u32, u32)>) {
+        self.labels.push(&(*label.clone()));
         self.nodes.push(0);
-        println!("{:?}", self.nodes.len());
         edges.iter()
             .for_each(|e| {
                 if e.0 as usize >= self.nodes.len() || e.1 as usize >= self.nodes.len() {
@@ -83,7 +92,7 @@ mod tests {
     #[test]
     fn test_neigbors_empty() {
         let graph = Graph {
-            labels: vec!["1".to_string(), "2".to_string(), "3".to_string(), "4".to_string(), "5".to_string(), "6".to_string()],
+            labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
             edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
         };
@@ -93,7 +102,7 @@ mod tests {
     #[test]
     fn test_neigbors_multiple() {
         let graph = Graph {
-            labels: vec!["1".to_string(), "2".to_string(), "3".to_string(), "4".to_string(), "5".to_string(), "6".to_string()],
+            labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
             edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
         };
@@ -103,11 +112,10 @@ mod tests {
     #[test]
     fn test_neigbors_one() {
         let graph = Graph {
-            labels: vec!["1".to_string(), "2".to_string(), "3".to_string(), "4".to_string(), "5".to_string(), "6".to_string()],
+            labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
             edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
         };
-        println!("{:?}", graph.neighbors(1));
         assert_eq!(graph.neighbors(1), [4]);
     }
 
@@ -115,7 +123,7 @@ mod tests {
     #[should_panic]
     fn test_neighbor_of_non_existing_node() {
         let graph = Graph {
-            labels: vec!["1".to_string(), "2".to_string(), "3".to_string(), "4".to_string(), "5".to_string(), "6".to_string()],
+            labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
             edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
         };
@@ -126,7 +134,7 @@ mod tests {
     #[should_panic]
     fn test_neighbor_of_invalid_node() {
         let mut graph = Graph {
-            labels: vec!["1".to_string(), "2".to_string(), "3".to_string(), "4".to_string(), "5".to_string(), "6".to_string()],
+            labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
             edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
         };
@@ -139,12 +147,12 @@ mod tests {
     #[test]
     fn test_node_add() {
         let mut graph = Graph {
-            labels: vec!["1".to_string(), "2".to_string(), "3".to_string(), "4".to_string(), "5".to_string(), "6".to_string()],
+            labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
             edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
         };
         
-        graph.add_node("6".to_string(), vec![(6, 1), (6, 2)]);
+        graph.add_node("6", vec![(6, 1), (6, 2)]);
         assert_eq!(graph.nodes, [0, 0, 0, 0, 0, 0, 0]);
     }
 
@@ -152,23 +160,23 @@ mod tests {
     #[should_panic]
     fn test_node_add_invalid_edge() {
         let mut graph = Graph {
-            labels: vec!["1".to_string(), "2".to_string(), "3".to_string(), "4".to_string(), "5".to_string(), "6".to_string()],
+            labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
             edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
         };
         graph.remove_node(2);
-        graph.add_node("6".to_string(), vec![(6, 2)]);
+        graph.add_node("6", vec![(6, 2)]);
     }
 
     #[test]
     #[should_panic]
     fn test_node_add_edge_to_non_existent_node() {
         let mut graph = Graph {
-            labels: vec!["1".to_string(), "2".to_string(), "3".to_string(), "4".to_string(), "5".to_string(), "6".to_string()],
+            labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
             edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
         };
-        graph.add_node("6".to_string(), vec![(6, 8)]);
+        graph.add_node("6", vec![(6, 8)]);
     }
 
     // test add_edge
@@ -176,7 +184,7 @@ mod tests {
     #[test]
     fn test_edge_add() {
         let mut graph = Graph {
-            labels: vec!["1".to_string(), "2".to_string(), "3".to_string(), "4".to_string(), "5".to_string(), "6".to_string()],
+            labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
             edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
         };
@@ -188,7 +196,7 @@ mod tests {
     #[should_panic]
     fn test_edge_add_invalid_node() {
         let mut graph = Graph {
-            labels: vec!["1".to_string(), "2".to_string(), "3".to_string(), "4".to_string(), "5".to_string(), "6".to_string()],
+            labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
             edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
         };
@@ -200,7 +208,7 @@ mod tests {
     #[should_panic]
     fn test_edge_add_non_existing_node() {
         let mut graph = Graph {
-            labels: vec!["1".to_string(), "2".to_string(), "3".to_string(), "4".to_string(), "5".to_string(), "6".to_string()],
+            labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
             edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
         };
@@ -211,7 +219,7 @@ mod tests {
     #[should_panic]
     fn test_edge_add_existing_edge() {
         let mut graph = Graph {
-            labels: vec!["1".to_string(), "2".to_string(), "3".to_string(), "4".to_string(), "5".to_string(), "6".to_string()],
+            labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
             edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
         };
@@ -223,7 +231,7 @@ mod tests {
     #[test]
     fn test_remove_node() {
         let mut graph = Graph {
-            labels: vec!["1".to_string(), "2".to_string(), "3".to_string(), "4".to_string(), "5".to_string(), "6".to_string()],
+            labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
             edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
         };
@@ -236,7 +244,7 @@ mod tests {
     #[test]
     fn test_remove_edge() {
         let mut graph = Graph {
-            labels: vec!["1".to_string(), "2".to_string(), "3".to_string(), "4".to_string(), "5".to_string(), "6".to_string()],
+            labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
             edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
         };
