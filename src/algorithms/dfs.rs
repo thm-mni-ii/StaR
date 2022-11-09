@@ -1,87 +1,117 @@
 use crate::data_structures::graph::Graph;
 
-pub struct DFSPreprocess<'a> {
+pub struct DFS<'a> {
     pub graph: &'a Graph<'a>,
     pub stack: Vec<(usize, u32)>,
     pub t: Vec<(usize, u32)>,
     pub colors: Vec<u8>,
+    pub preprocess: bool,
 }
 
-impl<'a> Iterator for DFSPreprocess<'a> {
+impl<'a> Iterator for DFS<'a> {
     type Item = (&'a str, usize);
 
     fn next(&mut self) -> Option<Self::Item> {
-        //println!("stack: {:?}, t: {:?}", self.stack, self.t);
         if self.stack.is_empty() {
             for i in 0..self.colors.len() {
-                if self.colors[i] == 0 {
-                    push_to_stack(&mut self.stack, &mut self.t, (i, 0));
-                    return Some((self.graph.labels[i], i));
-                    //break;
+                if self.colors[i] == 0 && self.t.is_empty() {
+                    self.push_to_stack((i, 0));
+                    if self.preprocess {
+                        return Some((self.graph.labels[i], i));
+                    }
+                    break;
                 }
             }
-            if self.stack.is_empty() {
+            if self.stack.is_empty() && self.t.is_empty() {
                 return None;
             }
         }
 
-        let temp = pop_from_stack(&mut self.stack, &mut self.t, &mut self.colors);
+        let temp = self.pop_from_stack();
         self.colors[temp.0 as usize] = 1; // gray
         let neighbors = self.graph.neighbors(temp.0);
 
         if temp.1 < (neighbors.len() as u32) {
-            push_to_stack(&mut self.stack, &mut self.t, (temp.0, temp.1 + 1));
+            self.push_to_stack((temp.0, temp.1 + 1));
 
             if self.colors[neighbors[temp.1 as usize] as usize] == 0 {
-                push_to_stack(
-                    &mut self.stack,
-                    &mut self.t,
-                    (neighbors[temp.1 as usize], 0),
-                );
-                return Some((self.graph.labels[neighbors[temp.1 as usize]], neighbors[temp.1 as usize]));
+                self.push_to_stack((neighbors[temp.1 as usize], 0));
+                if self.preprocess {
+                    return Some((
+                        self.graph.labels[neighbors[temp.1 as usize]],
+                        neighbors[temp.1 as usize],
+                    ));
+                }
             }
         } else {
             self.colors[temp.0 as usize] = 2;
+            if !self.preprocess {
+                return Some((self.graph.labels[temp.0], temp.0));
+            }
         }
-        return self.next();
+        self.next()
     }
 }
 
-pub fn push_to_stack(
-    stack: &mut Vec<(usize, u32)>,
-    t: &mut Vec<(usize, u32)>,
-    to_push: (usize, u32),
-) {
-    if stack.len() >= stack.capacity() {
-        println!("overflow");
-        *stack = Vec::with_capacity(stack.capacity());
-        *t = Vec::with_capacity(stack.capacity());
-    }
-    stack.push(to_push);
+impl DFS<'_> {
+    pub fn push_to_stack(&mut self, to_push: (usize, u32)) {
+        if self.stack.len() >= self.stack.capacity() {
+            self.stack = Vec::with_capacity(self.stack.capacity());
+        }
+        self.stack.push(to_push);
 
-    if stack.len() == stack.capacity() || stack.len() == stack.capacity() / 2 {
-        t.push(to_push);
+        if self.stack.len() == self.stack.capacity()
+            || self.stack.len() == self.stack.capacity() / 2
+        {
+            self.t.push(to_push);
+        }
     }
-}
 
-pub fn pop_from_stack(
-    stack: &mut Vec<(usize, u32)>,
-    t: &mut Vec<(usize, u32)>,
-    colors: &mut Vec<u8>,
-) -> (usize, u32) {
-    if stack.len() == 0 && !t.is_empty() {
-        restore_segment(colors);
+    pub fn pop_from_stack(&mut self) -> (usize, u32) {
+        
+        if self.stack.len() == 0 && !self.t.is_empty() {
+            self.restore_segment();
+        }
+        if self.stack.len() == self.stack.capacity()
+            || self.stack.len() == self.stack.capacity() / 2
+        {
+            self.t.pop().unwrap();
+        }
+        self.stack.pop().unwrap()
     }
-    if stack.len() == stack.capacity() || stack.len() == stack.capacity() / 2 {
-        t.pop().unwrap();
-    }
-    stack.pop().unwrap()
-}
 
-fn restore_segment(colors: &mut Vec<u8>) {
-    for c in colors {
-        if *c == (1 as u8) {
-            *c = 0;
+    fn restore_segment(&mut self) {
+        for c in 0..self.colors.len() {
+            if self.colors[c] == (1 as u8) {
+                self.colors[c] = 0;
+            }
+        }
+        let old_top_of_t = self.t[self.t.len() - 1]; 
+        self.t = Vec::new();
+
+        while self.stack.is_empty()
+            || self.stack[self.stack.len() - 1].0 != old_top_of_t.0
+        {
+            if self.stack.is_empty() {
+                for i in 0..self.colors.len() {
+                    if self.colors[i] == 0 {
+                        self.push_to_stack((i, 0));
+                        break;
+                    }
+                }
+            }
+            let temp = self.pop_from_stack();
+            self.colors[temp.0 as usize] = 1; // gray
+            let neighbors = self.graph.neighbors(temp.0);
+
+            if temp.1 < (neighbors.len() as u32) {
+                self.push_to_stack((temp.0, temp.1 + 1));
+                if self.colors[neighbors[temp.1 as usize] as usize] == 0 {
+                    self.push_to_stack((neighbors[temp.1 as usize], 0));
+                }
+            } else {
+                self.colors[temp.0 as usize] = 2;
+            }
         }
     }
 }
@@ -99,6 +129,8 @@ mod tests {
         };
 
         //println!("{:?}", dfs.colors);
-        graph.dfs_preprocess().for_each(|i| println!("{:?}", i))
+        graph.dfs_preprocess().for_each(|i| println!("{:?}", i));
+        println!("----------------------------------------------------------------");
+        graph.dfs_postprocess().for_each(|i| println!("{:?}", i));
     }
 }

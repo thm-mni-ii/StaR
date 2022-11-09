@@ -8,13 +8,23 @@ pub struct Graph<'b> {
 }
 
 impl<'b> Graph<'b> {
-    pub fn dfs_preprocess(&self) -> DFSPreprocess {
-        let len = self.nodes.len();
-        DFSPreprocess {
+    pub fn dfs_preprocess(&self) -> DFS {
+        DFS {
             graph: self,
-            stack: Vec::with_capacity(len),
+            stack: Vec::with_capacity(1),
             t: Vec::new(),
-            colors: vec![0 as u8; len]
+            colors: vec![0 as u8; self.nodes.len()],
+            preprocess: true,
+        }
+    }
+
+    pub fn dfs_postprocess(&self) -> DFS {
+        DFS {
+            graph: self,
+            stack: Vec::with_capacity(1),
+            t: Vec::new(),
+            colors: vec![0 as u8; self.nodes.len()],
+            preprocess: false,
         }
     }
 
