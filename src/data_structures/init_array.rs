@@ -1,36 +1,68 @@
-use std::{mem::MaybeUninit, ops::Index};
+use std::ops::Index;
 
-pub struct InitArray<const LEN: usize> {
-    a: [MaybeUninit<i32>; LEN],
-    initv: i32,
+pub struct InitArray {
+    a: Vec<usize>,
+    initv: usize,
     b: usize,
 }
 
-impl<const LEN: usize> InitArray<LEN> {
-    pub fn new(v: i32) -> Self {
+impl InitArray {
+    pub fn new(initv: usize, size: usize) -> Self {
         InitArray {
-            a: unsafe { MaybeUninit::uninit().assume_init() },
-            initv: v,
+            a: vec![initv; size],
+            initv,
             b: 0,
         }
     }
 
-    pub fn init(&mut self, v: i32) {
+    pub fn from_vec(initv: usize, vec: Vec<usize>) -> Self {
+        let mut init_arr = InitArray {
+            a: vec,
+            initv,
+            b: 0,
+        };
+
+        let len = init_arr.len();
+        if len % 2 != 0 {
+            init_arr.a[len - 1] = initv;
+        }
+
+        init_arr
+    }
+
+    pub fn len(&self) -> usize {
+        self.a.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.a.is_empty()
+    }
+
+    pub fn init(&mut self, v: usize) {
+        let len = self.len();
+        if len % 2 != 0 {
+            self.a[len - 1] = v;
+        }
+
         self.initv = v;
         self.b = 0;
     }
 
-    pub fn to_array(&self) -> [i32; LEN] {
-        let mut arr = [0; LEN];
+    pub fn to_vec(&self) -> Vec<usize> {
+        let mut vec = vec![0; self.a.len()];
 
-        for (i, v) in arr.iter_mut().enumerate() {
+        for (i, v) in vec.iter_mut().enumerate() {
             *v = *self.read_ref(i);
         }
 
-        arr
+        vec
     }
 
-    pub fn read_ref(&self, i: usize) -> &i32 {
+    pub fn read_ref(&self, i: usize) -> &usize {
+        if self.len() % 2 != 0 && i == self.len() - 1 {
+            return &self.a[i];
+        }
+
         let bi = i / 2;
         let bk = self.chained_to(bi);
 
@@ -38,20 +70,25 @@ impl<const LEN: usize> InitArray<LEN> {
             if bk.is_some() {
                 &self.initv
             } else {
-                self.unsafe_get_ref(i)
+                &self.a[i]
             }
         } else if bk.is_some() {
             if i % 2 == 0 {
-                self.unsafe_get_ref(self.unsafe_get(i) as usize + 1)
+                &self.a[self.a[i] + 1]
             } else {
-                self.unsafe_get_ref(i)
+                &self.a[i]
             }
         } else {
             &self.initv
         }
     }
 
-    pub fn write(&mut self, i: usize, v: i32) {
+    pub fn write(&mut self, i: usize, v: usize) {
+        if self.len() % 2 != 0 && i == self.len() - 1 {
+            self.a[i] = v;
+            return;
+        }
+
         let bi = i / 2;
         let bk = self.chained_to(bi);
 
@@ -66,7 +103,7 @@ impl<const LEN: usize> InitArray<LEN> {
                     if bi == bj {
                         self.write_and_break(i, v);
                     } else {
-                        self.a[bj * 2 + 1].write(self.unsafe_get(bi * 2 + 1));
+                        self.a[2 * bj + 1] = self.a[2 * bi + 1];
                         self.make_chain(bj, bk);
                         self.init_block(bi);
                         self.write_and_break(i, v);
@@ -93,35 +130,27 @@ impl<const LEN: usize> InitArray<LEN> {
         }
     }
 
-    fn write_chained(&mut self, i: usize, v: i32, bk: usize) {
+    fn write_chained(&mut self, i: usize, v: usize, bk: usize) {
         if i % 2 == 0 {
-            self.a[bk * 2 + 1].write(v);
+            self.a[2 * bk + 1] = v;
         } else {
-            self.a[i].write(v);
+            self.a[i] = v;
         }
     }
 
-    fn write_and_break(&mut self, i: usize, v: i32) {
-        self.a[i].write(v);
+    fn write_and_break(&mut self, i: usize, v: usize) {
+        self.a[i] = v;
         self.break_chain(i / 2);
     }
 
-    fn unsafe_get(&self, i: usize) -> i32 {
-        unsafe { self.a[i].assume_init_read() }
-    }
-
-    fn unsafe_get_ref(&self, i: usize) -> &i32 {
-        unsafe { self.a[i].assume_init_ref() }
-    }
-
     fn chained_to(&self, bi: usize) -> Option<usize> {
-        let k = self.unsafe_get(2 * bi) as usize;
+        let k = self.a[2 * bi];
         let bk = k / 2;
 
         if k % 2 == 0
-            && ((0 <= bi as i32 && bi < self.b && self.b <= bk && bk < self.a.len() / 2)
-                || (0 <= bk as i32 && bk < self.b && self.b <= bi))
-            && self.unsafe_get(k) as usize == 2 * bi
+            && ((bi < self.b && self.b <= bk && bk < self.a.len() / 2)
+                || (bk < self.b && self.b <= bi))
+            && self.a[k] == 2 * bi
         {
             return Some(bk);
         }
@@ -130,19 +159,19 @@ impl<const LEN: usize> InitArray<LEN> {
     }
 
     fn make_chain(&mut self, bi: usize, bj: usize) {
-        self.a[2 * bi].write(2 * bj as i32);
-        self.a[2 * bj].write(2 * bi as i32);
+        self.a[2 * bi] = 2 * bj;
+        self.a[2 * bj] = 2 * bi;
     }
 
     fn break_chain(&mut self, bi: usize) {
         if let Some(bk) = self.chained_to(bi) {
-            self.a[2 * bk].write(2 * bk as i32);
+            self.a[2 * bk] = 2 * bk;
         }
     }
 
     fn init_block(&mut self, bi: usize) {
-        self.a[2 * bi].write(self.initv);
-        self.a[2 * bi + 1].write(self.initv);
+        self.a[2 * bi] = self.initv;
+        self.a[2 * bi + 1] = self.initv;
     }
 
     fn extend(&mut self) -> usize {
@@ -157,7 +186,7 @@ impl<const LEN: usize> InitArray<LEN> {
                 bs
             }
             Some(bk) => {
-                self.a[bs * 2].write(self.unsafe_get(bk * 2 + 1));
+                self.a[2 * bs] = self.a[2 * bk + 1];
                 self.break_chain(bs);
                 self.init_block(bk);
                 self.break_chain(bk);
@@ -167,9 +196,9 @@ impl<const LEN: usize> InitArray<LEN> {
     }
 }
 
-impl<const LEN: usize> Index<usize> for InitArray<LEN> {
-    type Output = i32;
-    fn index<'a>(&'_ self, i: usize) -> &'_ i32 {
+impl Index<usize> for InitArray {
+    type Output = usize;
+    fn index<'a>(&'_ self, i: usize) -> &'_ usize {
         self.read_ref(i)
     }
 }
@@ -180,76 +209,114 @@ mod tests {
     use rand::{rngs::StdRng, Rng, SeedableRng};
 
     #[test]
-    fn new() {
-        let initv = 7;
-        let init_arr = InitArray::new(initv);
-        assert_eq!([initv; 100], init_arr.to_array());
+    fn new_even_length() {
+        new(100, false)
+    }
+
+    #[test]
+    fn from_vec_even_length() {
+        new(100, true)
+    }
+
+    #[test]
+    fn new_uneven_length() {
+        new(101, false)
+    }
+
+    #[test]
+    fn from_vec_uneven_length() {
+        new(101, true)
     }
 
     #[test]
     fn multiple_inits() {
-        let mut init_arr = InitArray::new(0);
+        let size = 100;
+        let mut init_arr = InitArray::new(0, size);
         init_arr.init(1);
-        assert_eq!([1; 100], init_arr.to_array());
+        assert_eq!(vec![1; size], init_arr.to_vec());
         init_arr.init(2);
-        assert_eq!([2; 100], init_arr.to_array());
+        assert_eq!(vec![2; size], init_arr.to_vec());
         init_arr.init(3);
-        assert_eq!([3; 100], init_arr.to_array());
+        assert_eq!(vec![3; size], init_arr.to_vec());
         init_arr.init(4);
-        assert_eq!([4; 100], init_arr.to_array());
+        assert_eq!(vec![4; size], init_arr.to_vec());
     }
 
     #[test]
     fn writes_and_inits() {
-        let mut init_arr = InitArray::new(0);
-        let mut arr = [0; 100];
+        let size = 100;
+        let mut init_arr = InitArray::new(0, size);
+        let mut vec = vec![0; size];
 
-        write_and_compare(&mut arr, &mut init_arr, 3, 1);
-        write_and_compare(&mut arr, &mut init_arr, 22, 2);
-        init_and_compare(&mut arr, &mut init_arr, 77);
-        write_and_compare(&mut arr, &mut init_arr, 60, 4);
-        write_and_compare(&mut arr, &mut init_arr, 0, 5);
-        init_and_compare(&mut arr, &mut init_arr, 100);
+        write_and_compare(&mut vec, &mut init_arr, 0, 1);
+        write_and_compare(&mut vec, &mut init_arr, 22, 2);
+        init_and_compare(&mut vec, &mut init_arr, 77);
+        write_and_compare(&mut vec, &mut init_arr, 60, 4);
+        write_and_compare(&mut vec, &mut init_arr, size - 1, 5);
+        init_and_compare(&mut vec, &mut init_arr, 100);
     }
 
     #[test]
-    fn random_writes_and_inits() {
+    fn random_writes_and_inits_even_length() {
+        random_writes_and_inits(100, false);
+    }
+
+    #[test]
+    fn random_writes_and_inits_uneven_length() {
+        random_writes_and_inits(101, false);
+    }
+
+    #[test]
+    fn random_writes_and_inits_even_length_from_vec() {
+        random_writes_and_inits(100, true);
+    }
+
+    #[test]
+    fn random_writes_and_inits_uneven_length_from_vec() {
+        random_writes_and_inits(101, true);
+    }
+
+    fn new(size: usize, from_vec: bool) {
         let initv = 7;
-        const LEN: usize = 100;
-        let mut init_arr = InitArray::new(initv);
-        let mut arr = [initv; LEN];
+        let init_arr = if from_vec {
+            InitArray::from_vec(initv, vec![0; size])
+        } else {
+            InitArray::new(initv, size)
+        };
+        assert_eq!(vec![initv; size], init_arr.to_vec());
+    }
+
+    fn random_writes_and_inits(size: usize, from_vec: bool) {
+        let initv = 7;
+        let mut init_arr = if from_vec {
+            InitArray::from_vec(initv, vec![0; size])
+        } else {
+            InitArray::new(initv, size)
+        };
+        let mut arr = vec![initv; size];
 
         let seed = [0; 32];
         let mut rng = StdRng::from_seed(seed);
 
-        for v in 0..1000 {
+        for v in 0..100 {
             if rng.gen_bool(0.03) {
                 init_and_compare(&mut arr, &mut init_arr, v);
             } else {
-                let i = rng.gen_range(0..LEN);
+                let i = rng.gen_range(0..size);
                 write_and_compare(&mut arr, &mut init_arr, i, v);
             }
         }
     }
 
-    fn init_and_compare<const LEN: usize>(
-        arr: &mut [i32; LEN],
-        init_arr: &mut InitArray<LEN>,
-        initv: i32,
-    ) {
-        *arr = [initv; LEN];
+    fn init_and_compare(vec: &mut Vec<usize>, init_arr: &mut InitArray, initv: usize) {
+        *vec = vec![initv; init_arr.a.len()];
         init_arr.init(initv);
-        assert_eq!(*arr, init_arr.to_array());
+        assert_eq!(*vec, init_arr.to_vec());
     }
 
-    fn write_and_compare<const LEN: usize>(
-        arr: &mut [i32; LEN],
-        init_arr: &mut InitArray<LEN>,
-        i: usize,
-        v: i32,
-    ) {
-        arr[i] = v;
+    fn write_and_compare(vec: &mut Vec<usize>, init_arr: &mut InitArray, i: usize, v: usize) {
+        vec[i] = v;
         init_arr.write(i, v);
-        assert_eq!(*arr, init_arr.to_array());
+        assert_eq!(*vec, init_arr.to_vec());
     }
 }
