@@ -11,7 +11,7 @@ impl<'b> Graph<'b> {
     pub fn dfs_preprocess(&self) -> DFS {
         DFS {
             graph: self,
-            stack: Vec::with_capacity(1),
+            stack: Vec::with_capacity(self.nodes.len()),
             t: Vec::new(),
             colors: vec![0 as u8; self.nodes.len()],
             preprocess: true,
@@ -21,7 +21,7 @@ impl<'b> Graph<'b> {
     pub fn dfs_postprocess(&self) -> DFS {
         DFS {
             graph: self,
-            stack: Vec::with_capacity(1),
+            stack: Vec::with_capacity(self.nodes.len()),
             t: Vec::new(),
             colors: vec![0 as u8; self.nodes.len()],
             preprocess: false,

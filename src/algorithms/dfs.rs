@@ -54,7 +54,7 @@ impl<'a> Iterator for DFS<'a> {
 }
 
 impl DFS<'_> {
-    pub fn push_to_stack(&mut self, to_push: (usize, u32)) {
+    fn push_to_stack(&mut self, to_push: (usize, u32)) {
         if self.stack.len() >= self.stack.capacity() {
             self.stack = Vec::with_capacity(self.stack.capacity());
         }
@@ -67,7 +67,7 @@ impl DFS<'_> {
         }
     }
 
-    pub fn pop_from_stack(&mut self) -> (usize, u32) {
+    fn pop_from_stack(&mut self) -> (usize, u32) {
         
         if self.stack.len() == 0 && !self.t.is_empty() {
             self.restore_segment();
@@ -81,6 +81,7 @@ impl DFS<'_> {
     }
 
     fn restore_segment(&mut self) {
+        println!("restoring..");
         for c in 0..self.colors.len() {
             if self.colors[c] == (1 as u8) {
                 self.colors[c] = 0;
@@ -118,19 +119,125 @@ impl DFS<'_> {
 
 #[cfg(test)]
 mod tests {
-    use crate::data_structures::graph::Graph;
+    use crate::{data_structures::graph::Graph, algorithms::dfs::DFS};
 
     #[test]
-    fn test_dfs() {
+    fn test_first_preprocess() {
         let graph = Graph {
             labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
             edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
         };
 
-        //println!("{:?}", dfs.colors);
-        graph.dfs_preprocess().for_each(|i| println!("{:?}", i));
-        println!("----------------------------------------------------------------");
-        graph.dfs_postprocess().for_each(|i| println!("{:?}", i));
+        assert_eq!(graph.dfs_preprocess().next().unwrap().1, 0)
+    }
+
+    #[test]
+    fn test_first_postprocess() {
+        let graph = Graph {
+            labels: vec!["1", "2", "3", "4", "5", "6"],
+            nodes: vec![0, 0, 0, 0, 0, 0],
+            edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
+        };
+
+        assert_eq!(graph.dfs_postprocess().next().unwrap().1, 3);
+    }
+
+    #[test]
+    fn test_whole_preprocess() {
+        let graph = Graph {
+            labels: vec!["1", "2", "3", "4", "5", "6"],
+            nodes: vec![0, 0, 0, 0, 0, 0],
+            edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
+        };
+
+        assert_eq!(graph.dfs_preprocess().map(|e| e.1).collect::<Vec<usize>>(), vec![0, 3, 2, 1, 4, 5])
+    }
+
+    #[test]
+    fn test_whole_postprocess() {
+        let graph = Graph {
+            labels: vec!["1", "2", "3", "4", "5", "6"],
+            nodes: vec![0, 0, 0, 0, 0, 0],
+            edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
+        };
+
+        assert_eq!(graph.dfs_postprocess().map(|e| e.1).collect::<Vec<usize>>(), vec![3, 4, 1, 2, 0, 5])
+    }
+
+    #[test]
+    fn test_whole_preprocess_with_overflow() {
+        let graph = Graph {
+            labels: vec!["1", "2", "3", "4", "5", "6"],
+            nodes: vec![0, 0, 0, 0, 0, 0],
+            edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
+        };
+
+        let preprocess = DFS {
+            graph: &graph,
+            stack: Vec::with_capacity(graph.nodes.len()),
+            t: Vec::new(),
+            colors: vec![0 as u8; graph.nodes.len()],
+            preprocess: true,
+        };
+
+        assert_eq!(preprocess.map(|e| e.1).collect::<Vec<usize>>(), vec![0, 3, 2, 1, 4, 5])
+    }
+
+    #[test]
+    fn test_whole_postprocess_with_overflow() {
+        let graph = Graph {
+            labels: vec!["1", "2", "3", "4", "5", "6"],
+            nodes: vec![0, 0, 0, 0, 0, 0],
+            edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
+        };
+
+        let postprocess = DFS {
+            graph: &graph,
+            stack: Vec::with_capacity(graph.nodes.len()),
+            t: Vec::new(),
+            colors: vec![0 as u8; graph.nodes.len()],
+            preprocess: false,
+        };
+
+        assert_eq!(postprocess.map(|e| e.1).collect::<Vec<usize>>(), vec![3, 4, 1, 2, 0, 5])
+    }
+
+    #[test]
+    fn test_first_preprocess_with_overflow() {
+        let graph = Graph {
+            labels: vec!["1", "2", "3", "4", "5", "6"],
+            nodes: vec![0, 0, 0, 0, 0, 0],
+            edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
+        };
+
+        let mut preprocess = DFS {
+            graph: &graph,
+            stack: Vec::with_capacity(graph.nodes.len()),
+            t: Vec::new(),
+            colors: vec![0 as u8; graph.nodes.len()],
+            preprocess: true,
+        };
+
+        assert_eq!(preprocess.next().unwrap().1, 0);
+    }
+
+    #[test]
+    fn test_first_postprocess_with_overflow() {
+        let graph = Graph {
+            labels: vec!["1", "2", "3", "4", "5", "6"],
+            nodes: vec![0, 0, 0, 0, 0, 0],
+            edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
+        };
+
+        let mut postprocess = DFS {
+            graph: &graph,
+            stack: Vec::with_capacity(graph.nodes.len()),
+            t: Vec::new(),
+            colors: vec![0 as u8; graph.nodes.len()],
+            preprocess: false,
+        };
+
+        assert_eq!(postprocess.next().unwrap().1, 3);
     }
 }
