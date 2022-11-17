@@ -276,6 +276,14 @@ mod tests {
         random_writes_and_inits(101, true);
     }
 
+    #[test]
+    fn accidental_chain() {
+        let size = 8;
+        let mut init_arr = InitArray::new(0, size);
+        let mut vec = vec![0; size];
+        write_and_compare(&mut vec, &mut init_arr, 0, 4);
+    }
+
     fn new(size: usize, from_vec: bool) {
         let initv = 7;
         let init_arr = if from_vec {
