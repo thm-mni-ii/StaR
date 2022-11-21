@@ -8,6 +8,14 @@ pub struct Graph<'b> {
 }
 
 impl<'b> Graph<'b> {
+    pub fn new(labels: Vec<&'b str>, nodes: Vec<u8>, edges: Vec<(u32, u32)>) -> Self {
+        Graph {
+            labels: labels,
+            nodes: nodes,
+            edges: edges
+        }
+    }
+
     pub fn dfs_preprocess(&self) -> DFS {
         DFS {
             graph: self,
@@ -28,7 +36,6 @@ impl<'b> Graph<'b> {
         }
     }
 
-    //returns indices of nodes neighboring the given node
     pub fn neighbors(&self, index: usize) -> Vec<usize> {
         if index >= self.nodes.len() {
             panic!("node {} does not exist", index);
