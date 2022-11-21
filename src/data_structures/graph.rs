@@ -57,7 +57,7 @@ impl<'b> Graph<'b> {
     }
 
     pub fn add_node(&mut self, label: &'b str, edges: Vec<(u32, u32)>) {
-        self.labels.push(label.clone());
+        self.labels.push(<&str>::clone(&label));
         self.nodes.push(0);
         edges.iter().for_each(|e| {
             if e.0 as usize >= self.nodes.len() || e.1 as usize >= self.nodes.len() {
@@ -91,12 +91,7 @@ impl<'b> Graph<'b> {
 
     pub fn remove_edge(&mut self, edge: (u32, u32)) {
         if self.edges.contains(&edge) {
-            self.edges = self
-                .edges
-                .iter()
-                .filter(|e| edge.0 != e.0 || edge.1 != e.1)
-                .copied()
-                .collect();
+            self.edges.retain(|e| edge.0 != e.0 || edge.1 != e.1)
         }
     }
 }
