@@ -94,7 +94,8 @@ impl<'b> Graph<'b> {
             self.edges = self
                 .edges
                 .iter()
-                .filter(|e| edge.0 != e.0 || edge.1 != e.1).copied()
+                .filter(|e| edge.0 != e.0 || edge.1 != e.1)
+                .copied()
                 .collect();
         }
     }
