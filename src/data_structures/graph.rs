@@ -10,9 +10,9 @@ pub struct Graph<'b> {
 impl<'b> Graph<'b> {
     pub fn new(labels: Vec<&'b str>, nodes: Vec<u8>, edges: Vec<(u32, u32)>) -> Self {
         Graph {
-            labels: labels,
-            nodes: nodes,
-            edges: edges,
+            labels,
+            nodes,
+            edges,
         }
     }
 
@@ -21,7 +21,7 @@ impl<'b> Graph<'b> {
             graph: self,
             stack: Vec::with_capacity(self.nodes.len()),
             t: Vec::new(),
-            colors: vec![0 as u8; self.nodes.len()],
+            colors: vec![0_u8; self.nodes.len()],
             preprocess: true,
         }
     }
@@ -31,7 +31,7 @@ impl<'b> Graph<'b> {
             graph: self,
             stack: Vec::with_capacity(self.nodes.len()),
             t: Vec::new(),
-            colors: vec![0 as u8; self.nodes.len()],
+            colors: vec![0_u8; self.nodes.len()],
             preprocess: false,
         }
     }
@@ -57,7 +57,7 @@ impl<'b> Graph<'b> {
     }
 
     pub fn add_node(&mut self, label: &'b str, edges: Vec<(u32, u32)>) {
-        self.labels.push(&(*label.clone()));
+        self.labels.push(label.clone());
         self.nodes.push(0);
         edges.iter().for_each(|e| {
             if e.0 as usize >= self.nodes.len() || e.1 as usize >= self.nodes.len() {
@@ -94,8 +94,7 @@ impl<'b> Graph<'b> {
             self.edges = self
                 .edges
                 .iter()
-                .filter(|e| edge.0 != e.0 || edge.1 != e.1)
-                .map(|e| *e)
+                .filter(|e| edge.0 != e.0 || edge.1 != e.1).copied()
                 .collect();
         }
     }

@@ -28,13 +28,13 @@ impl<'a> Iterator for DFS<'a> {
         }
 
         let temp = self.pop_from_stack();
-        self.colors[temp.0 as usize] = 1; // gray
+        self.colors[temp.0] = 1; // gray
         let neighbors = self.graph.neighbors(temp.0);
 
         if temp.1 < (neighbors.len() as u32) {
             self.push_to_stack((temp.0, temp.1 + 1));
 
-            if self.colors[neighbors[temp.1 as usize] as usize] == 0 {
+            if self.colors[neighbors[temp.1 as usize]] == 0 {
                 self.push_to_stack((neighbors[temp.1 as usize], 0));
                 if self.preprocess {
                     return Some((
@@ -44,7 +44,7 @@ impl<'a> Iterator for DFS<'a> {
                 }
             }
         } else {
-            self.colors[temp.0 as usize] = 2;
+            self.colors[temp.0] = 2;
             if !self.preprocess {
                 return Some((self.graph.labels[temp.0], temp.0));
             }
@@ -68,7 +68,7 @@ impl DFS<'_> {
     }
 
     fn pop_from_stack(&mut self) -> (usize, u32) {
-        if self.stack.len() == 0 && !self.t.is_empty() {
+        if self.stack.is_empty() && !self.t.is_empty() {
             self.restore_segment();
         }
         if self.stack.len() == self.stack.capacity()
@@ -82,7 +82,7 @@ impl DFS<'_> {
     fn restore_segment(&mut self) {
         println!("restoring..");
         for c in 0..self.colors.len() {
-            if self.colors[c] == (1 as u8) {
+            if self.colors[c] == (1_u8) {
                 self.colors[c] = 0;
             }
         }
@@ -99,16 +99,16 @@ impl DFS<'_> {
                 }
             }
             let temp = self.pop_from_stack();
-            self.colors[temp.0 as usize] = 1; // gray
+            self.colors[temp.0] = 1; // gray
             let neighbors = self.graph.neighbors(temp.0);
 
             if temp.1 < (neighbors.len() as u32) {
                 self.push_to_stack((temp.0, temp.1 + 1));
-                if self.colors[neighbors[temp.1 as usize] as usize] == 0 {
+                if self.colors[neighbors[temp.1 as usize]] == 0 {
                     self.push_to_stack((neighbors[temp.1 as usize], 0));
                 }
             } else {
-                self.colors[temp.0 as usize] = 2;
+                self.colors[temp.0] = 2;
             }
         }
     }
