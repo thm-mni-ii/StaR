@@ -68,7 +68,6 @@ impl DFS<'_> {
     }
 
     fn pop_from_stack(&mut self) -> (usize, u32) {
-        
         if self.stack.len() == 0 && !self.t.is_empty() {
             self.restore_segment();
         }
@@ -87,12 +86,10 @@ impl DFS<'_> {
                 self.colors[c] = 0;
             }
         }
-        let old_top_of_t = self.t[self.t.len() - 1]; 
+        let old_top_of_t = self.t[self.t.len() - 1];
         self.t = Vec::new();
 
-        while self.stack.is_empty()
-            || self.stack[self.stack.len() - 1].0 != old_top_of_t.0
-        {
+        while self.stack.is_empty() || self.stack[self.stack.len() - 1].0 != old_top_of_t.0 {
             if self.stack.is_empty() {
                 for i in 0..self.colors.len() {
                     if self.colors[i] == 0 {
@@ -119,7 +116,7 @@ impl DFS<'_> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{data_structures::graph::Graph, algorithms::dfs::DFS};
+    use crate::{algorithms::dfs::DFS, data_structures::graph::Graph};
 
     #[test]
     fn test_first_preprocess() {
@@ -151,7 +148,10 @@ mod tests {
             edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
         };
 
-        assert_eq!(graph.dfs_preprocess().map(|e| e.1).collect::<Vec<usize>>(), vec![0, 3, 2, 1, 4, 5])
+        assert_eq!(
+            graph.dfs_preprocess().map(|e| e.1).collect::<Vec<usize>>(),
+            vec![0, 3, 2, 1, 4, 5]
+        )
     }
 
     #[test]
@@ -162,7 +162,10 @@ mod tests {
             edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
         };
 
-        assert_eq!(graph.dfs_postprocess().map(|e| e.1).collect::<Vec<usize>>(), vec![3, 4, 1, 2, 0, 5])
+        assert_eq!(
+            graph.dfs_postprocess().map(|e| e.1).collect::<Vec<usize>>(),
+            vec![3, 4, 1, 2, 0, 5]
+        )
     }
 
     #[test]
@@ -181,7 +184,10 @@ mod tests {
             preprocess: true,
         };
 
-        assert_eq!(preprocess.map(|e| e.1).collect::<Vec<usize>>(), vec![0, 3, 2, 1, 4, 5])
+        assert_eq!(
+            preprocess.map(|e| e.1).collect::<Vec<usize>>(),
+            vec![0, 3, 2, 1, 4, 5]
+        )
     }
 
     #[test]
@@ -200,7 +206,10 @@ mod tests {
             preprocess: false,
         };
 
-        assert_eq!(postprocess.map(|e| e.1).collect::<Vec<usize>>(), vec![3, 4, 1, 2, 0, 5])
+        assert_eq!(
+            postprocess.map(|e| e.1).collect::<Vec<usize>>(),
+            vec![3, 4, 1, 2, 0, 5]
+        )
     }
 
     #[test]

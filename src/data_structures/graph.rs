@@ -1,5 +1,5 @@
-use core::panic;
 use crate::algorithms::dfs::*;
+use core::panic;
 
 pub struct Graph<'b> {
     pub labels: Vec<&'b str>,
@@ -12,7 +12,7 @@ impl<'b> Graph<'b> {
         Graph {
             labels: labels,
             nodes: nodes,
-            edges: edges
+            edges: edges,
         }
     }
 
@@ -43,7 +43,8 @@ impl<'b> Graph<'b> {
         if self.nodes[index] == 1 {
             panic!("node {} has been deleted", index);
         }
-        let edges_containing_index: Vec<&(u32, u32)> = self.edges
+        let edges_containing_index: Vec<&(u32, u32)> = self
+            .edges
             .iter()
             .filter(|e| e.0 as usize == index)
             .collect();
@@ -58,16 +59,15 @@ impl<'b> Graph<'b> {
     pub fn add_node(&mut self, label: &'b str, edges: Vec<(u32, u32)>) {
         self.labels.push(&(*label.clone()));
         self.nodes.push(0);
-        edges.iter()
-            .for_each(|e| {
-                if e.0 as usize >= self.nodes.len() || e.1 as usize >= self.nodes.len() {
-                    panic!("edge {:?} contains non existent nodes", e);
-                }
-                if self.nodes[e.0 as usize] == 1 || self.nodes[e.1 as usize] == 1 {
-                    panic!("edge {:?} contains invalid nodes", e);
-                }
-                self.edges.push(*e)
-            }); 
+        edges.iter().for_each(|e| {
+            if e.0 as usize >= self.nodes.len() || e.1 as usize >= self.nodes.len() {
+                panic!("edge {:?} contains non existent nodes", e);
+            }
+            if self.nodes[e.0 as usize] == 1 || self.nodes[e.1 as usize] == 1 {
+                panic!("edge {:?} contains invalid nodes", e);
+            }
+            self.edges.push(*e)
+        });
     }
 
     pub fn remove_node(&mut self, index: usize) {
@@ -91,7 +91,8 @@ impl<'b> Graph<'b> {
 
     pub fn remove_edge(&mut self, edge: (u32, u32)) {
         if self.edges.contains(&edge) {
-            self.edges = self.edges
+            self.edges = self
+                .edges
                 .iter()
                 .filter(|e| edge.0 != e.0 || edge.1 != e.1)
                 .map(|e| *e)
@@ -168,7 +169,7 @@ mod tests {
             nodes: vec![0, 0, 0, 0, 0, 0],
             edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
         };
-        
+
         graph.add_node("6", vec![(6, 1), (6, 2)]);
         assert_eq!(graph.nodes, [0, 0, 0, 0, 0, 0, 0]);
     }
@@ -206,7 +207,10 @@ mod tests {
             edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
         };
         graph.add_edge((3, 5));
-        assert_eq!(graph.edges, [(0, 3), (0, 2), (1, 4), (2, 1), (4, 1), (3, 5)]);
+        assert_eq!(
+            graph.edges,
+            [(0, 3), (0, 2), (1, 4), (2, 1), (4, 1), (3, 5)]
+        );
     }
 
     #[test]
