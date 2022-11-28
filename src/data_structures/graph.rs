@@ -4,11 +4,11 @@ use core::panic;
 pub struct Graph<'b> {
     pub labels: Vec<&'b str>,
     pub nodes: Vec<u8>, //0: valid entry, 1: invalid entry
-    pub edges: Vec<(u32, u32)>,
+    pub edges: Vec<Vec<usize>>,
 }
 
 impl<'b> Graph<'b> {
-    pub fn new(labels: Vec<&'b str>, nodes: Vec<u8>, edges: Vec<(u32, u32)>) -> Self {
+    pub fn new(labels: Vec<&'b str>, nodes: Vec<u8>, edges: Vec<Vec<usize>>) -> Self {
         Graph {
             labels,
             nodes,
@@ -36,37 +36,30 @@ impl<'b> Graph<'b> {
         }
     }
 
-    pub fn neighbors(&self, index: usize) -> Vec<usize> {
+    pub fn neighbors(&self, index: usize) -> &Vec<usize> {
         if index >= self.nodes.len() {
             panic!("node {} does not exist", index);
         }
         if self.nodes[index] == 1 {
             panic!("node {} has been deleted", index);
         }
-        let edges_containing_index: Vec<&(u32, u32)> = self
-            .edges
-            .iter()
-            .filter(|e| e.0 as usize == index)
-            .collect();
-        let other_nodes: Vec<usize> = edges_containing_index
-            .iter()
-            .map(|e| e.1 as usize)
-            .collect();
-
-        other_nodes
+        &self.edges[index]
     }
 
-    pub fn add_node(&mut self, label: &'b str, edges: Vec<(u32, u32)>) {
+    pub fn add_node(&mut self, label: &'b str, edges: Vec<usize>) {
         self.labels.push(<&str>::clone(&label));
         self.nodes.push(0);
+        self.edges.push(vec![]);
+
         edges.iter().for_each(|e| {
-            if e.0 as usize >= self.nodes.len() || e.1 as usize >= self.nodes.len() {
+            if *e >= self.nodes.len() {
                 panic!("edge {:?} contains non existent nodes", e);
             }
-            if self.nodes[e.0 as usize] == 1 || self.nodes[e.1 as usize] == 1 {
+            if self.nodes[*e] == 1 {
                 panic!("edge {:?} contains invalid nodes", e);
             }
-            self.edges.push(*e)
+            self.edges[self.nodes.len() - 1].push(*e);
+            self.edges[*e].push(self.nodes.len() - 1);
         });
     }
 
@@ -76,22 +69,32 @@ impl<'b> Graph<'b> {
         }
     }
 
-    pub fn add_edge(&mut self, e: (u32, u32)) {
-        if self.edges.contains(&e) {
-            panic!("edge {:?} already exists", e);
+    pub fn add_edge(&mut self, edge: (usize, usize)) {
+        if self.edges[edge.0].contains(&edge.1) {
+            panic!("edge {:?} already exists", edge);
         }
-        if e.0 as usize >= self.nodes.len() || e.1 as usize >= self.nodes.len() {
-            panic!("edge {:?} contains non existent nodes", e);
+        if edge.0 >= self.nodes.len() {
+            panic!("node {} does not exist", edge.0);
         }
-        if self.nodes[e.0 as usize] == 1 || self.nodes[e.1 as usize] == 1 {
-            panic!("edge {:?} contains invalid nodes", e);
+        if edge.1 >= self.nodes.len() {
+            panic!("node {} does not exist", edge.1);
         }
-        self.edges.push(e);
+        if self.nodes[edge.1] == 1 {
+            panic!("node {} is invalid", edge.1);
+        }
+        if self.nodes[edge.0] == 1 {
+            panic!("node {} is invalid", edge.0);
+        }
+        self.edges[edge.0].push(edge.1);
+        self.edges[edge.1].push(edge.0);
     }
 
-    pub fn remove_edge(&mut self, edge: (u32, u32)) {
-        if self.edges.contains(&edge) {
-            self.edges.retain(|e| edge.0 != e.0 || edge.1 != e.1)
+    pub fn remove_edge(&mut self, edge: (usize, usize)) {
+        if self.edges[edge.0].contains(&edge.1) {
+            self.edges[edge.0].retain(|e| edge.1 != *e)
+        }
+        if self.edges[edge.1].contains(&edge.0) {
+            self.edges[edge.1].retain(|e| edge.0 != *e)
         }
     }
 }
@@ -107,9 +110,16 @@ mod tests {
         let graph = Graph {
             labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
-            edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
+            edges: vec![
+                [3, 2].to_vec(),
+                [4, 2].to_vec(),
+                [0, 1].to_vec(),
+                [0].to_vec(),
+                [1].to_vec(),
+                [].to_vec(),
+            ],
         };
-        assert_eq!(graph.neighbors(5), []);
+        assert_eq!(*graph.neighbors(5), []);
     }
 
     #[test]
@@ -117,9 +127,16 @@ mod tests {
         let graph = Graph {
             labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
-            edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
+            edges: vec![
+                [3, 2].to_vec(),
+                [4, 2].to_vec(),
+                [0, 1].to_vec(),
+                [0].to_vec(),
+                [1].to_vec(),
+                [].to_vec(),
+            ],
         };
-        assert_eq!(graph.neighbors(0), [3, 2]);
+        assert_eq!(*graph.neighbors(0), [3, 2]);
     }
 
     #[test]
@@ -127,9 +144,16 @@ mod tests {
         let graph = Graph {
             labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
-            edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
+            edges: vec![
+                [3, 2].to_vec(),
+                [4, 2].to_vec(),
+                [0, 1].to_vec(),
+                [0].to_vec(),
+                [1].to_vec(),
+                [].to_vec(),
+            ],
         };
-        assert_eq!(graph.neighbors(1), [4]);
+        assert_eq!(*graph.neighbors(1), [4, 2]);
     }
 
     #[test]
@@ -138,7 +162,14 @@ mod tests {
         let graph = Graph {
             labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
-            edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
+            edges: vec![
+                [3, 2].to_vec(),
+                [4, 2].to_vec(),
+                [0, 1].to_vec(),
+                [0].to_vec(),
+                [1].to_vec(),
+                [].to_vec(),
+            ],
         };
         graph.neighbors(6);
     }
@@ -149,24 +180,50 @@ mod tests {
         let mut graph = Graph {
             labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
-            edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
+            edges: vec![
+                [3, 2].to_vec(),
+                [4, 2].to_vec(),
+                [0, 1].to_vec(),
+                [0].to_vec(),
+                [1].to_vec(),
+                [].to_vec(),
+            ],
         };
         graph.remove_node(2);
         graph.neighbors(2);
     }
 
-    // test ass_node
+    // test add_node
 
     #[test]
     fn test_node_add() {
         let mut graph = Graph {
             labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
-            edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
+            edges: vec![
+                [3, 2].to_vec(),
+                [4, 2].to_vec(),
+                [0, 1].to_vec(),
+                [0].to_vec(),
+                [1].to_vec(),
+                [].to_vec(),
+            ],
         };
 
-        graph.add_node("6", vec![(6, 1), (6, 2)]);
+        graph.add_node("6", vec![1, 2]);
         assert_eq!(graph.nodes, [0, 0, 0, 0, 0, 0, 0]);
+        assert_eq!(
+            graph.edges,
+            [
+                [3, 2].to_vec(),
+                [4, 2, 6].to_vec(),
+                [0, 1, 6].to_vec(),
+                [0].to_vec(),
+                [1].to_vec(),
+                [].to_vec(),
+                [1, 2].to_vec()
+            ]
+        )
     }
 
     #[test]
@@ -175,10 +232,17 @@ mod tests {
         let mut graph = Graph {
             labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
-            edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
+            edges: vec![
+                [3, 2].to_vec(),
+                [4, 2].to_vec(),
+                [0, 1].to_vec(),
+                [0].to_vec(),
+                [1].to_vec(),
+                [].to_vec(),
+            ],
         };
         graph.remove_node(2);
-        graph.add_node("6", vec![(6, 2)]);
+        graph.add_node("6", vec![2]);
     }
 
     #[test]
@@ -187,9 +251,16 @@ mod tests {
         let mut graph = Graph {
             labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
-            edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
+            edges: vec![
+                [3, 2].to_vec(),
+                [4, 2].to_vec(),
+                [0, 1].to_vec(),
+                [0].to_vec(),
+                [1].to_vec(),
+                [].to_vec(),
+            ],
         };
-        graph.add_node("6", vec![(6, 8)]);
+        graph.add_node("6", vec![8]);
     }
 
     // test add_edge
@@ -199,12 +270,26 @@ mod tests {
         let mut graph = Graph {
             labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
-            edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
+            edges: vec![
+                [3, 2].to_vec(),
+                [4, 2].to_vec(),
+                [0, 1].to_vec(),
+                [0].to_vec(),
+                [1].to_vec(),
+                [].to_vec(),
+            ],
         };
         graph.add_edge((3, 5));
         assert_eq!(
             graph.edges,
-            [(0, 3), (0, 2), (1, 4), (2, 1), (4, 1), (3, 5)]
+            vec![
+                [3, 2].to_vec(),
+                [4, 2].to_vec(),
+                [0, 1].to_vec(),
+                [0, 5].to_vec(),
+                [1].to_vec(),
+                [3].to_vec()
+            ],
         );
     }
 
@@ -214,7 +299,14 @@ mod tests {
         let mut graph = Graph {
             labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
-            edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
+            edges: vec![
+                [3, 2].to_vec(),
+                [4, 2].to_vec(),
+                [0, 1].to_vec(),
+                [0].to_vec(),
+                [1].to_vec(),
+                [].to_vec(),
+            ],
         };
         graph.remove_node(2);
         graph.add_edge((3, 2));
@@ -226,7 +318,14 @@ mod tests {
         let mut graph = Graph {
             labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
-            edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
+            edges: vec![
+                [3, 2].to_vec(),
+                [4, 2].to_vec(),
+                [0, 1].to_vec(),
+                [0].to_vec(),
+                [1].to_vec(),
+                [].to_vec(),
+            ],
         };
         graph.add_edge((3, 7));
     }
@@ -237,7 +336,14 @@ mod tests {
         let mut graph = Graph {
             labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
-            edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
+            edges: vec![
+                [3, 2].to_vec(),
+                [4, 2].to_vec(),
+                [0, 1].to_vec(),
+                [0].to_vec(),
+                [1].to_vec(),
+                [].to_vec(),
+            ],
         };
         graph.add_edge((0, 3));
     }
@@ -249,7 +355,14 @@ mod tests {
         let mut graph = Graph {
             labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
-            edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
+            edges: vec![
+                [3, 2].to_vec(),
+                [4, 2].to_vec(),
+                [0, 1].to_vec(),
+                [0].to_vec(),
+                [1].to_vec(),
+                [].to_vec(),
+            ],
         };
         graph.remove_node(3);
         assert_eq!(graph.nodes, [0, 0, 0, 1, 0, 0])
@@ -262,9 +375,26 @@ mod tests {
         let mut graph = Graph {
             labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
-            edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
+            edges: vec![
+                [3, 2].to_vec(),
+                [4, 2].to_vec(),
+                [0, 1].to_vec(),
+                [0].to_vec(),
+                [1].to_vec(),
+                [].to_vec(),
+            ],
         };
         graph.remove_edge((0, 3));
-        assert_eq!(graph.edges, [(0, 2), (1, 4), (2, 1), (4, 1)]);
+        assert_eq!(
+            graph.edges,
+            vec![
+                [2].to_vec(),
+                [4, 2].to_vec(),
+                [0, 1].to_vec(),
+                [].to_vec(),
+                [1].to_vec(),
+                [].to_vec()
+            ]
+        );
     }
 }

@@ -1,5 +1,7 @@
 use crate::data_structures::graph::Graph;
 
+//https://drops.dagstuhl.de/opus/volltexte/2015/4921/pdf/21.pdf
+
 pub struct DFS<'a> {
     pub graph: &'a Graph<'a>,
     pub stack: Vec<(usize, u32)>,
@@ -123,7 +125,14 @@ mod tests {
         let graph = Graph {
             labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
-            edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
+            edges: vec![
+                [3].to_vec(),
+                [4, 2].to_vec(),
+                [0, 1].to_vec(),
+                [0].to_vec(),
+                [1].to_vec(),
+                [].to_vec(),
+            ],
         };
 
         assert_eq!(graph.dfs_preprocess().next().unwrap().1, 0)
@@ -134,7 +143,14 @@ mod tests {
         let graph = Graph {
             labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
-            edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
+            edges: vec![
+                [3].to_vec(),
+                [4, 2].to_vec(),
+                [0, 1].to_vec(),
+                [0].to_vec(),
+                [1].to_vec(),
+                [].to_vec(),
+            ],
         };
 
         assert_eq!(graph.dfs_postprocess().next().unwrap().1, 3);
@@ -145,7 +161,14 @@ mod tests {
         let graph = Graph {
             labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
-            edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
+            edges: vec![
+                [3, 2].to_vec(),
+                [4, 2].to_vec(),
+                [0, 1].to_vec(),
+                [0].to_vec(),
+                [1].to_vec(),
+                [].to_vec(),
+            ],
         };
 
         assert_eq!(
@@ -159,7 +182,14 @@ mod tests {
         let graph = Graph {
             labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
-            edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
+            edges: vec![
+                [3, 2].to_vec(),
+                [4, 2].to_vec(),
+                [0, 1].to_vec(),
+                [0].to_vec(),
+                [1].to_vec(),
+                [].to_vec(),
+            ],
         };
 
         assert_eq!(
@@ -173,7 +203,14 @@ mod tests {
         let graph = Graph {
             labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
-            edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
+            edges: vec![
+                [3, 2].to_vec(),
+                [4, 2].to_vec(),
+                [0, 1].to_vec(),
+                [0].to_vec(),
+                [1].to_vec(),
+                [].to_vec(),
+            ],
         };
 
         let preprocess = DFS {
@@ -195,7 +232,14 @@ mod tests {
         let graph = Graph {
             labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
-            edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
+            edges: vec![
+                [3, 2].to_vec(),
+                [4, 2].to_vec(),
+                [0, 1].to_vec(),
+                [0].to_vec(),
+                [1].to_vec(),
+                [].to_vec(),
+            ],
         };
 
         let postprocess = DFS {
@@ -217,7 +261,14 @@ mod tests {
         let graph = Graph {
             labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
-            edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
+            edges: vec![
+                [3, 2].to_vec(),
+                [4, 2].to_vec(),
+                [0, 1].to_vec(),
+                [0].to_vec(),
+                [1].to_vec(),
+                [].to_vec(),
+            ],
         };
 
         let mut preprocess = DFS {
@@ -236,7 +287,14 @@ mod tests {
         let graph = Graph {
             labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
-            edges: vec![(0, 3), (0, 2), (1, 4), (2, 1), (4, 1)],
+            edges: vec![
+                [3, 2].to_vec(),
+                [4, 2].to_vec(),
+                [0, 1].to_vec(),
+                [0].to_vec(),
+                [1].to_vec(),
+                [].to_vec(),
+            ],
         };
 
         let mut postprocess = DFS {
