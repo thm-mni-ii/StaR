@@ -1,12 +1,15 @@
-from pathlib import Path
-import requests
-import shutil
-from tqdm.auto import tqdm
-import pandas as pd
-from sklearn import preprocessing
-from itertools import combinations
-import networkx as nx
 import argparse
+import shutil
+from itertools import combinations
+from pathlib import Path
+
+import networkx as nx
+import pandas as pd
+import requests
+from sklearn import preprocessing
+from tqdm.auto import tqdm
+
+Path(f"./downloads/").mkdir(parents=True, exist_ok=True)
 
 URI = "https://datasets.imdbws.com/"
 FILES = ["title.basics.tsv.gz", "title.principals.tsv.gz", "name.basics.tsv.gz"]
@@ -130,6 +133,7 @@ def create_graph(df):
         edges = combinations(film[1].label.values, 2)
         G.add_edges_from(edges)
     return G
+
 
 def write_graph(file, G):
     print("Writing graph")
