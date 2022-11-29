@@ -3,11 +3,11 @@ use crate::data_structures::graph::Graph;
 //https://drops.dagstuhl.de/opus/volltexte/2015/4921/pdf/21.pdf
 
 pub struct DFS<'a> {
-    pub graph: &'a Graph<'a>,
-    pub stack: Vec<(usize, u32)>,
-    pub t: Vec<(usize, u32)>,
-    pub colors: Vec<u8>,
-    pub preprocess: bool,
+    graph: &'a Graph<'a>,
+    stack: Vec<(usize, u32)>,
+    t: Vec<(usize, u32)>,
+    colors: Vec<u8>,
+    preprocess: bool,
 }
 
 impl<'a> Iterator for DFS<'a> {
@@ -55,7 +55,27 @@ impl<'a> Iterator for DFS<'a> {
     }
 }
 
-impl DFS<'_> {
+impl<'a> DFS<'a> {
+    pub fn new_preprocess(graph: &'a Graph) -> Self {
+        Self {
+            graph,
+            stack: Vec::with_capacity(2),
+            t: Vec::new(),
+            colors: vec![0_u8; graph.nodes.len()],
+            preprocess: true,
+        }
+    }
+
+    pub fn new_postprocess(graph: &'a Graph) -> Self {
+        Self {
+            graph,
+            stack: Vec::with_capacity(2),
+            t: Vec::new(),
+            colors: vec![0_u8; graph.nodes.len()],
+            preprocess: false,
+        }
+    }
+
     fn push_to_stack(&mut self, to_push: (usize, u32)) {
         if self.stack.len() >= self.stack.capacity() {
             self.stack = Vec::with_capacity(self.stack.capacity());
@@ -135,7 +155,7 @@ mod tests {
             ],
         };
 
-        assert_eq!(graph.dfs_preprocess().next().unwrap().1, 0)
+        assert_eq!(DFS::new_preprocess(&graph).next().unwrap().1, 0)
     }
 
     #[test]
@@ -153,7 +173,7 @@ mod tests {
             ],
         };
 
-        assert_eq!(graph.dfs_postprocess().next().unwrap().1, 3);
+        assert_eq!(DFS::new_postprocess(&graph).next().unwrap().1, 3);
     }
 
     #[test]
@@ -172,7 +192,9 @@ mod tests {
         };
 
         assert_eq!(
-            graph.dfs_preprocess().map(|e| e.1).collect::<Vec<usize>>(),
+            DFS::new_preprocess(&graph)
+                .map(|e| e.1)
+                .collect::<Vec<usize>>(),
             vec![0, 3, 2, 1, 4, 5]
         )
     }
@@ -193,7 +215,9 @@ mod tests {
         };
 
         assert_eq!(
-            graph.dfs_postprocess().map(|e| e.1).collect::<Vec<usize>>(),
+            DFS::new_postprocess(&graph)
+                .map(|e| e.1)
+                .collect::<Vec<usize>>(),
             vec![3, 4, 1, 2, 0, 5]
         )
     }
@@ -213,16 +237,10 @@ mod tests {
             ],
         };
 
-        let preprocess = DFS {
-            graph: &graph,
-            stack: Vec::with_capacity(graph.nodes.len()),
-            t: Vec::new(),
-            colors: vec![0 as u8; graph.nodes.len()],
-            preprocess: true,
-        };
-
         assert_eq!(
-            preprocess.map(|e| e.1).collect::<Vec<usize>>(),
+            DFS::new_preprocess(&graph)
+                .map(|e| e.1)
+                .collect::<Vec<usize>>(),
             vec![0, 3, 2, 1, 4, 5]
         )
     }
@@ -242,16 +260,10 @@ mod tests {
             ],
         };
 
-        let postprocess = DFS {
-            graph: &graph,
-            stack: Vec::with_capacity(graph.nodes.len()),
-            t: Vec::new(),
-            colors: vec![0 as u8; graph.nodes.len()],
-            preprocess: false,
-        };
-
         assert_eq!(
-            postprocess.map(|e| e.1).collect::<Vec<usize>>(),
+            DFS::new_postprocess(&graph)
+                .map(|e| e.1)
+                .collect::<Vec<usize>>(),
             vec![3, 4, 1, 2, 0, 5]
         )
     }
@@ -271,15 +283,7 @@ mod tests {
             ],
         };
 
-        let mut preprocess = DFS {
-            graph: &graph,
-            stack: Vec::with_capacity(graph.nodes.len()),
-            t: Vec::new(),
-            colors: vec![0 as u8; graph.nodes.len()],
-            preprocess: true,
-        };
-
-        assert_eq!(preprocess.next().unwrap().1, 0);
+        assert_eq!(DFS::new_preprocess(&graph).next().unwrap().1, 0);
     }
 
     #[test]
@@ -297,14 +301,6 @@ mod tests {
             ],
         };
 
-        let mut postprocess = DFS {
-            graph: &graph,
-            stack: Vec::with_capacity(graph.nodes.len()),
-            t: Vec::new(),
-            colors: vec![0 as u8; graph.nodes.len()],
-            preprocess: false,
-        };
-
-        assert_eq!(postprocess.next().unwrap().1, 3);
+        assert_eq!(DFS::new_postprocess(&graph).next().unwrap().1, 3);
     }
 }
