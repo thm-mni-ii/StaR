@@ -3,7 +3,7 @@ use crate::data_structures::graph::Graph;
 //https://drops.dagstuhl.de/opus/volltexte/2015/4921/pdf/21.pdf
 
 pub struct DFS<'a> {
-    graph: &'a Graph<'a>,
+    graph: &'a Graph,
     stack: Vec<(usize, u32)>,
     t: Vec<(usize, u32)>,
     colors: Vec<u8>,
@@ -11,7 +11,7 @@ pub struct DFS<'a> {
 }
 
 impl<'a> Iterator for DFS<'a> {
-    type Item = (&'a str, usize);
+    type Item = usize;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.stack.is_empty() {
@@ -19,7 +19,7 @@ impl<'a> Iterator for DFS<'a> {
                 if self.colors[i] == 0 && self.t.is_empty() {
                     self.push_to_stack((i, 0));
                     if self.preprocess {
-                        return Some((self.graph.labels[i], i));
+                        return Some(i);
                     }
                     break;
                 }
@@ -39,16 +39,13 @@ impl<'a> Iterator for DFS<'a> {
             if self.colors[neighbors[temp.1 as usize]] == 0 {
                 self.push_to_stack((neighbors[temp.1 as usize], 0));
                 if self.preprocess {
-                    return Some((
-                        self.graph.labels[neighbors[temp.1 as usize]],
-                        neighbors[temp.1 as usize],
-                    ));
+                    return Some(neighbors[temp.1 as usize]);
                 }
             }
         } else {
             self.colors[temp.0] = 2;
             if !self.preprocess {
-                return Some((self.graph.labels[temp.0], temp.0));
+                return Some(temp.0);
             }
         }
         self.next()
@@ -102,7 +99,6 @@ impl<'a> DFS<'a> {
     }
 
     fn restore_segment(&mut self) {
-        println!("restoring..");
         for c in 0..self.colors.len() {
             if self.colors[c] == (1_u8) {
                 self.colors[c] = 0;
@@ -143,7 +139,6 @@ mod tests {
     #[test]
     fn test_first_preprocess() {
         let graph = Graph {
-            labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
             edges: vec![
                 [3].to_vec(),
@@ -155,13 +150,12 @@ mod tests {
             ],
         };
 
-        assert_eq!(DFS::new_preprocess(&graph).next().unwrap().1, 0)
+        assert_eq!(DFS::new_preprocess(&graph).next().unwrap(), 0)
     }
 
     #[test]
     fn test_first_postprocess() {
         let graph = Graph {
-            labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
             edges: vec![
                 [3].to_vec(),
@@ -173,13 +167,12 @@ mod tests {
             ],
         };
 
-        assert_eq!(DFS::new_postprocess(&graph).next().unwrap().1, 3);
+        assert_eq!(DFS::new_postprocess(&graph).next().unwrap(), 3);
     }
 
     #[test]
     fn test_whole_preprocess() {
         let graph = Graph {
-            labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
             edges: vec![
                 [3, 2].to_vec(),
@@ -192,9 +185,7 @@ mod tests {
         };
 
         assert_eq!(
-            DFS::new_preprocess(&graph)
-                .map(|e| e.1)
-                .collect::<Vec<usize>>(),
+            DFS::new_preprocess(&graph).collect::<Vec<usize>>(),
             vec![0, 3, 2, 1, 4, 5]
         )
     }
@@ -202,7 +193,6 @@ mod tests {
     #[test]
     fn test_whole_postprocess() {
         let graph = Graph {
-            labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
             edges: vec![
                 [3, 2].to_vec(),
@@ -215,9 +205,7 @@ mod tests {
         };
 
         assert_eq!(
-            DFS::new_postprocess(&graph)
-                .map(|e| e.1)
-                .collect::<Vec<usize>>(),
+            DFS::new_postprocess(&graph).collect::<Vec<usize>>(),
             vec![3, 4, 1, 2, 0, 5]
         )
     }
@@ -225,7 +213,6 @@ mod tests {
     #[test]
     fn test_whole_preprocess_with_overflow() {
         let graph = Graph {
-            labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
             edges: vec![
                 [3, 2].to_vec(),
@@ -238,9 +225,7 @@ mod tests {
         };
 
         assert_eq!(
-            DFS::new_preprocess(&graph)
-                .map(|e| e.1)
-                .collect::<Vec<usize>>(),
+            DFS::new_preprocess(&graph).collect::<Vec<usize>>(),
             vec![0, 3, 2, 1, 4, 5]
         )
     }
@@ -248,7 +233,6 @@ mod tests {
     #[test]
     fn test_whole_postprocess_with_overflow() {
         let graph = Graph {
-            labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
             edges: vec![
                 [3, 2].to_vec(),
@@ -261,9 +245,7 @@ mod tests {
         };
 
         assert_eq!(
-            DFS::new_postprocess(&graph)
-                .map(|e| e.1)
-                .collect::<Vec<usize>>(),
+            DFS::new_postprocess(&graph).collect::<Vec<usize>>(),
             vec![3, 4, 1, 2, 0, 5]
         )
     }
@@ -271,7 +253,6 @@ mod tests {
     #[test]
     fn test_first_preprocess_with_overflow() {
         let graph = Graph {
-            labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
             edges: vec![
                 [3, 2].to_vec(),
@@ -283,13 +264,12 @@ mod tests {
             ],
         };
 
-        assert_eq!(DFS::new_preprocess(&graph).next().unwrap().1, 0);
+        assert_eq!(DFS::new_preprocess(&graph).next().unwrap(), 0);
     }
 
     #[test]
     fn test_first_postprocess_with_overflow() {
         let graph = Graph {
-            labels: vec!["1", "2", "3", "4", "5", "6"],
             nodes: vec![0, 0, 0, 0, 0, 0],
             edges: vec![
                 [3, 2].to_vec(),
@@ -301,6 +281,6 @@ mod tests {
             ],
         };
 
-        assert_eq!(DFS::new_postprocess(&graph).next().unwrap().1, 3);
+        assert_eq!(DFS::new_postprocess(&graph).next().unwrap(), 3);
     }
 }
