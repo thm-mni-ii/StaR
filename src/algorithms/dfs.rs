@@ -138,7 +138,7 @@ mod tests {
 
     #[test]
     fn test_first_preprocess() {
-        let graph = Graph::new( 
+        let graph = Graph::new(
             vec![0, 0, 0, 0, 0, 0],
             vec![
                 [3, 2].to_vec(),
@@ -155,7 +155,7 @@ mod tests {
 
     #[test]
     fn test_first_postprocess() {
-        let graph = Graph::new( 
+        let graph = Graph::new(
             vec![0, 0, 0, 0, 0, 0],
             vec![
                 [3, 2].to_vec(),
@@ -172,7 +172,7 @@ mod tests {
 
     #[test]
     fn test_whole_preprocess() {
-        let graph = Graph::new( 
+        let graph = Graph::new(
             vec![0, 0, 0, 0, 0, 0],
             vec![
                 [3, 2].to_vec(),
@@ -192,7 +192,7 @@ mod tests {
 
     #[test]
     fn test_whole_postprocess() {
-        let graph = Graph::new( 
+        let graph = Graph::new(
             vec![0, 0, 0, 0, 0, 0],
             vec![
                 [3, 2].to_vec(),
