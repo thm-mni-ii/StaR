@@ -138,43 +138,9 @@ mod tests {
 
     #[test]
     fn test_first_preprocess() {
-        let graph = Graph {
-            nodes: vec![0, 0, 0, 0, 0, 0],
-            edges: vec![
-                [3].to_vec(),
-                [4, 2].to_vec(),
-                [0, 1].to_vec(),
-                [0].to_vec(),
-                [1].to_vec(),
-                [].to_vec(),
-            ],
-        };
-
-        assert_eq!(DFS::new_preprocess(&graph).next().unwrap(), 0)
-    }
-
-    #[test]
-    fn test_first_postprocess() {
-        let graph = Graph {
-            nodes: vec![0, 0, 0, 0, 0, 0],
-            edges: vec![
-                [3].to_vec(),
-                [4, 2].to_vec(),
-                [0, 1].to_vec(),
-                [0].to_vec(),
-                [1].to_vec(),
-                [].to_vec(),
-            ],
-        };
-
-        assert_eq!(DFS::new_postprocess(&graph).next().unwrap(), 3);
-    }
-
-    #[test]
-    fn test_whole_preprocess() {
-        let graph = Graph {
-            nodes: vec![0, 0, 0, 0, 0, 0],
-            edges: vec![
+        let graph = Graph::new( 
+            vec![0, 0, 0, 0, 0, 0],
+            vec![
                 [3, 2].to_vec(),
                 [4, 2].to_vec(),
                 [0, 1].to_vec(),
@@ -182,7 +148,41 @@ mod tests {
                 [1].to_vec(),
                 [].to_vec(),
             ],
-        };
+        );
+
+        assert_eq!(DFS::new_preprocess(&graph).next().unwrap(), 0)
+    }
+
+    #[test]
+    fn test_first_postprocess() {
+        let graph = Graph::new( 
+            vec![0, 0, 0, 0, 0, 0],
+            vec![
+                [3, 2].to_vec(),
+                [4, 2].to_vec(),
+                [0, 1].to_vec(),
+                [0].to_vec(),
+                [1].to_vec(),
+                [].to_vec(),
+            ],
+        );
+
+        assert_eq!(DFS::new_postprocess(&graph).next().unwrap(), 3);
+    }
+
+    #[test]
+    fn test_whole_preprocess() {
+        let graph = Graph::new( 
+            vec![0, 0, 0, 0, 0, 0],
+            vec![
+                [3, 2].to_vec(),
+                [4, 2].to_vec(),
+                [0, 1].to_vec(),
+                [0].to_vec(),
+                [1].to_vec(),
+                [].to_vec(),
+            ],
+        );
 
         assert_eq!(
             DFS::new_preprocess(&graph).collect::<Vec<usize>>(),
@@ -192,9 +192,9 @@ mod tests {
 
     #[test]
     fn test_whole_postprocess() {
-        let graph = Graph {
-            nodes: vec![0, 0, 0, 0, 0, 0],
-            edges: vec![
+        let graph = Graph::new( 
+            vec![0, 0, 0, 0, 0, 0],
+            vec![
                 [3, 2].to_vec(),
                 [4, 2].to_vec(),
                 [0, 1].to_vec(),
@@ -202,85 +202,11 @@ mod tests {
                 [1].to_vec(),
                 [].to_vec(),
             ],
-        };
+        );
 
         assert_eq!(
             DFS::new_postprocess(&graph).collect::<Vec<usize>>(),
             vec![3, 4, 1, 2, 0, 5]
         )
-    }
-
-    #[test]
-    fn test_whole_preprocess_with_overflow() {
-        let graph = Graph {
-            nodes: vec![0, 0, 0, 0, 0, 0],
-            edges: vec![
-                [3, 2].to_vec(),
-                [4, 2].to_vec(),
-                [0, 1].to_vec(),
-                [0].to_vec(),
-                [1].to_vec(),
-                [].to_vec(),
-            ],
-        };
-
-        assert_eq!(
-            DFS::new_preprocess(&graph).collect::<Vec<usize>>(),
-            vec![0, 3, 2, 1, 4, 5]
-        )
-    }
-
-    #[test]
-    fn test_whole_postprocess_with_overflow() {
-        let graph = Graph {
-            nodes: vec![0, 0, 0, 0, 0, 0],
-            edges: vec![
-                [3, 2].to_vec(),
-                [4, 2].to_vec(),
-                [0, 1].to_vec(),
-                [0].to_vec(),
-                [1].to_vec(),
-                [].to_vec(),
-            ],
-        };
-
-        assert_eq!(
-            DFS::new_postprocess(&graph).collect::<Vec<usize>>(),
-            vec![3, 4, 1, 2, 0, 5]
-        )
-    }
-
-    #[test]
-    fn test_first_preprocess_with_overflow() {
-        let graph = Graph {
-            nodes: vec![0, 0, 0, 0, 0, 0],
-            edges: vec![
-                [3, 2].to_vec(),
-                [4, 2].to_vec(),
-                [0, 1].to_vec(),
-                [0].to_vec(),
-                [1].to_vec(),
-                [].to_vec(),
-            ],
-        };
-
-        assert_eq!(DFS::new_preprocess(&graph).next().unwrap(), 0);
-    }
-
-    #[test]
-    fn test_first_postprocess_with_overflow() {
-        let graph = Graph {
-            nodes: vec![0, 0, 0, 0, 0, 0],
-            edges: vec![
-                [3, 2].to_vec(),
-                [4, 2].to_vec(),
-                [0, 1].to_vec(),
-                [0].to_vec(),
-                [1].to_vec(),
-                [].to_vec(),
-            ],
-        };
-
-        assert_eq!(DFS::new_postprocess(&graph).next().unwrap(), 3);
     }
 }
