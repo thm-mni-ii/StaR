@@ -6,14 +6,30 @@ pub struct Graph {
     pub edges: Vec<Vec<usize>>,
 }
 
-impl Graph {
-    pub fn new(nodes: Vec<u8>, edges: Vec<Vec<NodeType>>) -> Self {
-        if edges.len() != nodes.len() {
-            panic!("Length of edge matrix has to be the same as number of nodes");
-        }
+impl Default for Graph {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
-        if nodes.iter().any(|node| *node != 0 && *node != 1) {
-            panic!("nodes should only be 0 (if node is valid) or 1 (if node has been deleted)");
+impl Graph {
+    pub fn new() -> Self {
+        Graph {
+            nodes: Vec::new(),
+            edges: Vec::new(),
+        }
+    }
+
+    pub fn new_with_nodes(n: usize) -> Self {
+        Graph {
+            nodes: vec![0_u8; n],
+            edges: vec![Vec::new(); n],
+        }
+    }
+
+    pub fn new_with_edges(n: usize, edges: Vec<Vec<NodeType>>) -> Self {
+        if edges.len() != n {
+            panic!("Length of edge matrix has to be the same as number of nodes");
         }
 
         for i in 0..edges.len() {
@@ -27,7 +43,10 @@ impl Graph {
             }
         }
 
-        Graph { nodes, edges }
+        Graph {
+            nodes: vec![0_u8; n],
+            edges,
+        }
     }
 
     pub fn neighbors(&self, index: NodeType) -> &Vec<NodeType> {
@@ -101,19 +120,13 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_new_with_invalid_eges() {
-        let _ = Graph::new(vec![0, 0], vec![vec![1], vec![]]);
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_invalid_entries_for_nodes() {
-        let _ = Graph::new(vec![2, 0], vec![vec![1], vec![0]]);
+        let _ = Graph::new_with_edges(2, vec![vec![1], vec![]]);
     }
 
     #[test]
     fn test_neigbors_empty() {
-        let graph = Graph::new(
-            vec![0, 0, 0, 0, 0, 0],
+        let graph = Graph::new_with_edges(
+            6,
             vec![
                 [3, 2].to_vec(),
                 [4, 2].to_vec(),
@@ -128,8 +141,8 @@ mod tests {
 
     #[test]
     fn test_neigbors_multiple() {
-        let graph = Graph::new(
-            vec![0, 0, 0, 0, 0, 0],
+        let graph = Graph::new_with_edges(
+            6,
             vec![
                 [3, 2].to_vec(),
                 [4, 2].to_vec(),
@@ -144,8 +157,8 @@ mod tests {
 
     #[test]
     fn test_neigbors_one() {
-        let graph = Graph::new(
-            vec![0, 0, 0, 0, 0, 0],
+        let graph = Graph::new_with_edges(
+            6,
             vec![
                 [3, 2].to_vec(),
                 [4, 2].to_vec(),
@@ -161,8 +174,8 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_neighbor_of_non_existing_node() {
-        let graph = Graph::new(
-            vec![0, 0, 0, 0, 0, 0],
+        let graph = Graph::new_with_edges(
+            6,
             vec![
                 [3, 2].to_vec(),
                 [4, 2].to_vec(),
@@ -178,8 +191,8 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_neighbor_of_invalid_node() {
-        let mut graph = Graph::new(
-            vec![0, 0, 0, 0, 0, 0],
+        let mut graph = Graph::new_with_edges(
+            6,
             vec![
                 [3, 2].to_vec(),
                 [4, 2].to_vec(),
@@ -195,8 +208,8 @@ mod tests {
 
     #[test]
     fn test_node_add() {
-        let mut graph = Graph::new(
-            vec![0, 0, 0, 0, 0, 0],
+        let mut graph = Graph::new_with_edges(
+            6,
             vec![
                 [3, 2].to_vec(),
                 [4, 2].to_vec(),
@@ -226,8 +239,8 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_node_add_invalid_edge() {
-        let mut graph = Graph::new(
-            vec![0, 0, 0, 0, 0, 0],
+        let mut graph = Graph::new_with_edges(
+            6,
             vec![
                 [3, 2].to_vec(),
                 [4, 2].to_vec(),
@@ -244,8 +257,8 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_node_add_edge_to_non_existent_node() {
-        let mut graph = Graph::new(
-            vec![0, 0, 0, 0, 0, 0],
+        let mut graph = Graph::new_with_edges(
+            6,
             vec![
                 [3, 2].to_vec(),
                 [4, 2].to_vec(),
@@ -260,8 +273,8 @@ mod tests {
 
     #[test]
     fn test_edge_add() {
-        let mut graph = Graph::new(
-            vec![0, 0, 0, 0, 0, 0],
+        let mut graph = Graph::new_with_edges(
+            6,
             vec![
                 [3, 2].to_vec(),
                 [4, 2].to_vec(),
@@ -288,8 +301,8 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_edge_add_invalid_node() {
-        let mut graph = Graph::new(
-            vec![0, 0, 0, 0, 0, 0],
+        let mut graph = Graph::new_with_edges(
+            6,
             vec![
                 [3, 2].to_vec(),
                 [4, 2].to_vec(),
@@ -306,8 +319,8 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_edge_add_non_existing_node() {
-        let mut graph = Graph::new(
-            vec![0, 0, 0, 0, 0, 0],
+        let mut graph = Graph::new_with_edges(
+            6,
             vec![
                 [3, 2].to_vec(),
                 [4, 2].to_vec(),
@@ -323,8 +336,8 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_edge_add_existing_edge() {
-        let mut graph = Graph::new(
-            vec![0, 0, 0, 0, 0, 0],
+        let mut graph = Graph::new_with_edges(
+            6,
             vec![
                 [3, 2].to_vec(),
                 [4, 2].to_vec(),
@@ -339,8 +352,8 @@ mod tests {
 
     #[test]
     fn test_remove_node() {
-        let mut graph = Graph::new(
-            vec![0, 0, 0, 0, 0, 0],
+        let mut graph = Graph::new_with_edges(
+            6,
             vec![
                 [3, 2].to_vec(),
                 [4, 2].to_vec(),
@@ -356,8 +369,8 @@ mod tests {
 
     #[test]
     fn test_remove_edge() {
-        let mut graph = Graph::new(
-            vec![0, 0, 0, 0, 0, 0],
+        let mut graph = Graph::new_with_edges(
+            6,
             vec![
                 [3, 2].to_vec(),
                 [4, 2].to_vec(),

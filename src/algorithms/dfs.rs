@@ -3,6 +3,8 @@ use crate::data_structures::graph::Graph;
 //https://drops.dagstuhl.de/opus/volltexte/2015/4921/pdf/21.pdf
 
 pub struct DFS<'a> {
+    start: usize,
+    start_needed: bool,
     graph: &'a Graph,
     stack: Vec<(usize, u32)>,
     t: Vec<(usize, u32)>,
@@ -14,6 +16,15 @@ impl<'a> Iterator for DFS<'a> {
     type Item = usize;
 
     fn next(&mut self) -> Option<Self::Item> {
+        if self.start_needed {
+            self.start_needed = false;
+            self.push_to_stack((self.start, 0));
+
+            if self.preprocess {
+                return Some(self.start);
+            }
+        }
+
         if self.stack.is_empty() {
             for i in 0..self.colors.len() {
                 if self.colors[i] == 0 && self.t.is_empty() {
@@ -53,8 +64,10 @@ impl<'a> Iterator for DFS<'a> {
 }
 
 impl<'a> DFS<'a> {
-    pub fn new_preprocess(graph: &'a Graph) -> Self {
+    pub fn new_preprocess(graph: &'a Graph, start: usize) -> Self {
         Self {
+            start,
+            start_needed: true,
             graph,
             stack: Vec::with_capacity(2),
             t: Vec::new(),
@@ -63,8 +76,10 @@ impl<'a> DFS<'a> {
         }
     }
 
-    pub fn new_postprocess(graph: &'a Graph) -> Self {
+    pub fn new_postprocess(graph: &'a Graph, start: usize) -> Self {
         Self {
+            start,
+            start_needed: true,
             graph,
             stack: Vec::with_capacity(2),
             t: Vec::new(),
@@ -99,6 +114,7 @@ impl<'a> DFS<'a> {
     }
 
     fn restore_segment(&mut self) {
+        self.start_needed = true;
         for c in 0..self.colors.len() {
             if self.colors[c] == (1_u8) {
                 self.colors[c] = 0;
@@ -108,6 +124,11 @@ impl<'a> DFS<'a> {
         self.t = Vec::new();
 
         while self.stack.is_empty() || self.stack[self.stack.len() - 1].0 != old_top_of_t.0 {
+            if self.start_needed {
+                self.start_needed = false;
+                self.push_to_stack((self.start, 0));
+            }
+
             if self.stack.is_empty() {
                 for i in 0..self.colors.len() {
                     if self.colors[i] == 0 {
@@ -138,8 +159,8 @@ mod tests {
 
     #[test]
     fn test_first_preprocess() {
-        let graph = Graph::new(
-            vec![0, 0, 0, 0, 0, 0],
+        let graph = Graph::new_with_edges(
+            6,
             vec![
                 [3, 2].to_vec(),
                 [4, 2].to_vec(),
@@ -150,13 +171,13 @@ mod tests {
             ],
         );
 
-        assert_eq!(DFS::new_preprocess(&graph).next().unwrap(), 0)
+        assert_eq!(DFS::new_preprocess(&graph, 0).next().unwrap(), 0)
     }
 
     #[test]
     fn test_first_postprocess() {
-        let graph = Graph::new(
-            vec![0, 0, 0, 0, 0, 0],
+        let graph = Graph::new_with_edges(
+            6,
             vec![
                 [3, 2].to_vec(),
                 [4, 2].to_vec(),
@@ -167,13 +188,13 @@ mod tests {
             ],
         );
 
-        assert_eq!(DFS::new_postprocess(&graph).next().unwrap(), 3);
+        assert_eq!(DFS::new_postprocess(&graph, 0).next().unwrap(), 3);
     }
 
     #[test]
     fn test_whole_preprocess() {
-        let graph = Graph::new(
-            vec![0, 0, 0, 0, 0, 0],
+        let graph = Graph::new_with_edges(
+            6,
             vec![
                 [3, 2].to_vec(),
                 [4, 2].to_vec(),
@@ -185,15 +206,15 @@ mod tests {
         );
 
         assert_eq!(
-            DFS::new_preprocess(&graph).collect::<Vec<usize>>(),
+            DFS::new_preprocess(&graph, 0).collect::<Vec<usize>>(),
             vec![0, 3, 2, 1, 4, 5]
         )
     }
 
     #[test]
     fn test_whole_postprocess() {
-        let graph = Graph::new(
-            vec![0, 0, 0, 0, 0, 0],
+        let graph = Graph::new_with_edges(
+            6,
             vec![
                 [3, 2].to_vec(),
                 [4, 2].to_vec(),
@@ -205,8 +226,48 @@ mod tests {
         );
 
         assert_eq!(
-            DFS::new_postprocess(&graph).collect::<Vec<usize>>(),
+            DFS::new_postprocess(&graph, 0).collect::<Vec<usize>>(),
             vec![3, 4, 1, 2, 0, 5]
+        )
+    }
+
+    #[test]
+    fn test_other_start_preprocess() {
+        let graph = Graph::new_with_edges(
+            6,
+            vec![
+                [3, 2].to_vec(),
+                [4, 2].to_vec(),
+                [0, 1].to_vec(),
+                [0].to_vec(),
+                [1].to_vec(),
+                [].to_vec(),
+            ],
+        );
+
+        assert_eq!(
+            DFS::new_preprocess(&graph, 2).collect::<Vec<usize>>(),
+            vec![2, 0, 3, 1, 4, 5]
+        )
+    }
+
+    #[test]
+    fn test_other_start_postprocess() {
+        let graph = Graph::new_with_edges(
+            6,
+            vec![
+                [3, 2].to_vec(),
+                [4, 2].to_vec(),
+                [0, 1].to_vec(),
+                [0].to_vec(),
+                [1].to_vec(),
+                [].to_vec(),
+            ],
+        );
+
+        assert_eq!(
+            DFS::new_postprocess(&graph, 2).collect::<Vec<usize>>(),
+            vec![3, 0, 4, 1, 2, 5]
         )
     }
 }
