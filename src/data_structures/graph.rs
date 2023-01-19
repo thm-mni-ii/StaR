@@ -1,6 +1,8 @@
 use core::panic;
 
 type NodeType = usize;
+
+#[derive(Debug)]
 pub struct Graph {
     pub nodes: Vec<u8>, //0: valid entry, 1: invalid entry
     pub edges: Vec<Vec<usize>>,
