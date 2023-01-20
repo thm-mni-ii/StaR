@@ -1,7 +1,7 @@
 use crate::data_structures::graph::Graph;
 use std::collections::VecDeque;
 
-struct BFS<'a> {
+pub struct BFS<'a> {
     start: Option<usize>,
     graph: &'a Graph,
     visited: Vec<bool>,
