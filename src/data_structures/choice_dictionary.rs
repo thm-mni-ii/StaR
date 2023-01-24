@@ -1,7 +1,29 @@
-type Word = u8;
+use std::fmt;
+
+type Word = u32;
 type BlockIdx = usize;
 type WordIdx = usize;
 type Color = usize;
+
+fn block_size() -> usize {
+    3
+}
+
+fn get_bit(word: Word, idx: usize) -> Word {
+    Word::from(word & (1 << idx) != 0)
+}
+
+fn elem_idx_to_word_idx(idx: usize) -> WordIdx {
+    idx / Word::BITS as usize
+}
+
+fn word_idx_to_block_idx(w: WordIdx) -> BlockIdx {
+    w / block_size() + 1
+}
+
+fn block_idx_to_word_idx(b: BlockIdx) -> WordIdx {
+    b * block_size() - block_size()
+}
 
 pub struct ChoiceDict {
     a: Vec<Word>,
@@ -14,9 +36,9 @@ impl ChoiceDict {
     pub fn new(size: usize) -> Self {
         let num_words = size.div_ceil(Word::BITS as usize);
 
-        assert!(num_words % Self::block_size() == 0);
+        assert!(num_words % block_size() == 0);
 
-        let num_blocks = num_words / Self::block_size();
+        let num_blocks = num_words / block_size();
 
         Self {
             a: vec![0; num_words],
@@ -26,43 +48,37 @@ impl ChoiceDict {
         }
     }
 
-    pub fn from_vec(vec: Vec<Word>) -> Self {
-        let num_words = vec.len();
-
-        assert!(num_words % Self::block_size() == 0);
-
-        let num_blocks = num_words / Self::block_size();
-        let size = vec.len() * Word::BITS as usize;
-
-        Self {
-            a: vec,
-            bar0: num_blocks,
-            bar1: 0,
-            size,
-        }
-    }
-
-    pub fn to_vec(&self) -> Vec<Word> {
+    pub fn to_color_vec(&self) -> Vec<Word> {
         let mut vec = vec![0; self.size];
 
         for (i, v) in vec.iter_mut().enumerate() {
-            *v = self.read(i);
+            *v = self.get(i);
         }
 
         vec
     }
 
+    pub fn iter_0(&self) -> ChoiceDictIterator {
+        return ChoiceDictIterator::new(self, 0);
+    }
+
+    pub fn iter_1(&self) -> ChoiceDictIterator {
+        return ChoiceDictIterator::new(self, 1);
+    }
+
     pub fn reset(&mut self) {
-        self.bar0 = self.a.len() / Self::block_size();
+        self.bar0 = self.max_block();
         self.bar1 = 0;
     }
 
-    pub fn read(&self, idx: usize) -> Word {
-        let wi = Self::elem_idx_to_word_idx(idx);
+    pub fn get(&self, idx: usize) -> Word {
+        self.check_bounds(idx);
+
+        let wi = elem_idx_to_word_idx(idx);
         let wrd = self.read_word(wi);
         let offset = idx % Word::BITS as usize;
 
-        Self::get_bit(wrd, offset)
+        get_bit(wrd, offset)
     }
 
     pub fn set(&mut self, idx: usize) {
@@ -74,7 +90,7 @@ impl ChoiceDict {
     }
 
     fn read_word(&self, w: WordIdx) -> Word {
-        let bi = Self::word_idx_to_block_idx(w);
+        let bi = word_idx_to_block_idx(w);
         let block_type_i = self.block_type(bi);
 
         if block_type_i.is_left[0] {
@@ -89,8 +105,8 @@ impl ChoiceDict {
                         match block_type_i.chained_to[1] {
                             None => 0,
                             Some(bj) => {
-                                if w % Self::block_size() == 1 {
-                                    let wj = Self::block_idx_to_word_idx(bj);
+                                if w % block_size() == 1 {
+                                    let wj = block_idx_to_word_idx(bj);
                                     return self.a[wj + 2];
                                 }
 
@@ -105,8 +121,8 @@ impl ChoiceDict {
             match block_type_i.chained_to[0] {
                 None => Word::MAX,
                 Some(bj) => {
-                    if w % Self::block_size() == 0 {
-                        let wj = Self::block_idx_to_word_idx(bj);
+                    if w % block_size() == 0 {
+                        let wj = block_idx_to_word_idx(bj);
                         return self.a[wj + 2];
                     }
 
@@ -117,17 +133,15 @@ impl ChoiceDict {
     }
 
     fn write(&mut self, idx: usize, c: Color) {
-        if idx >= self.size {
-            panic!("index out of bounds");
-        }
+        self.check_bounds(idx);
 
-        if self.read(idx) == c as Word {
+        if self.get(idx) == c as Word {
             return;
         }
 
-        let w = Self::elem_idx_to_word_idx(idx);
-        let b = Self::word_idx_to_block_idx(w);
-        let block_type = Self::block_type(self, b);
+        let w = elem_idx_to_word_idx(idx);
+        let b = word_idx_to_block_idx(w);
+        let block_type = self.block_type(b);
         self.connect_and_write(idx, w, &block_type, c);
     }
 
@@ -167,7 +181,7 @@ impl ChoiceDict {
     }
 
     fn is_full_block(&self, b: usize, c: Color) -> bool {
-        let w = Self::block_idx_to_word_idx(b);
+        let w = block_idx_to_word_idx(b);
         let val = if c == 0 { 0 } else { Word::MAX };
         self.read_word(w) == val && self.read_word(w + 1) == val && self.read_word(w + 2) == val
     }
@@ -196,8 +210,8 @@ impl ChoiceDict {
         chain: Color,
         c: Color,
     ) {
-        if wi % Self::block_size() == chain {
-            let wj = Self::block_idx_to_word_idx(bj);
+        if wi % block_size() == chain {
+            let wj = block_idx_to_word_idx(bj);
             self.write_bit(wj + 2, idx, c);
         } else {
             self.write_bit(wi, idx, c);
@@ -230,14 +244,14 @@ impl ChoiceDict {
 
     fn break_chain(&mut self, b: BlockIdx, c: Color) {
         if let Some(bj) = self.chained_to(b, c) {
-            let wk = Self::block_idx_to_word_idx(bj);
+            let wk = block_idx_to_word_idx(bj);
             self.a[wk + c] = 0;
         }
     }
 
     fn chain(&mut self, bl: BlockIdx, br: BlockIdx, c: Color) {
-        let wl = Self::block_idx_to_word_idx(bl);
-        let wr = Self::block_idx_to_word_idx(br);
+        let wl = block_idx_to_word_idx(bl);
+        let wr = block_idx_to_word_idx(br);
         self.a[wl + 2] = self.a[wr + c];
         self.a[wl + c] = br as Word;
         self.a[wr + c] = bl as Word;
@@ -259,8 +273,8 @@ impl ChoiceDict {
             }
             Some(bj) => {
                 if bi <= bar {
-                    let wi = Self::block_idx_to_word_idx(bi);
-                    let wj = Self::block_idx_to_word_idx(bj);
+                    let wi = block_idx_to_word_idx(bi);
+                    let wj = block_idx_to_word_idx(bj);
                     self.a[wj + c] = self.a[wi + 2];
                     self.init_block(block_type, c);
 
@@ -302,13 +316,10 @@ impl ChoiceDict {
             if b_dash != b_star {
                 match self.chained_to(b_star, c) {
                     None => {
-                        self.print_blocks();
                         self.chain(b_dash, b_star, c);
-                        self.print_blocks();
                     }
                     Some(b_double_dash) => {
                         self.unchain(&self.block_type(b_star), c);
-                        self.print_blocks();
                         self.chain(b_dash, b_double_dash, c);
                         break_chain = true;
                     }
@@ -388,7 +399,7 @@ impl ChoiceDict {
     fn block_type(&self, b: BlockIdx) -> BlockType {
         BlockType {
             b,
-            w: Self::block_idx_to_word_idx(b),
+            w: block_idx_to_word_idx(b),
             is_left: [b <= self.bar0, b <= self.bar1],
             chained_to: [self.chained_to(b, 0), self.chained_to(b, 1)],
         }
@@ -428,14 +439,14 @@ impl ChoiceDict {
     }
 
     fn chained_to(&self, b: BlockIdx, c: Color) -> Option<usize> {
-        let w = Self::block_idx_to_word_idx(b);
+        let w = block_idx_to_word_idx(b);
         let bj = self.a[w + c] as usize;
 
         if bj == 0 || bj > self.max_block() {
             return None;
         }
 
-        let wk = Self::block_idx_to_word_idx(bj);
+        let wk = block_idx_to_word_idx(bj);
 
         let bar = if c == 0 { self.bar0 } else { self.bar1 };
 
@@ -446,48 +457,68 @@ impl ChoiceDict {
         None
     }
 
-    fn print_blocks(&self) {
+    fn max_block(&self) -> usize {
+        self.a.len() / block_size()
+    }
+
+    pub fn iterate_1(&mut self) -> Vec<usize> {
+        self.iterate(1)
+    }
+
+    pub fn iterate_0(&mut self) -> Vec<usize> {
+        self.iterate(0)
+    }
+
+    fn iterate(&mut self, c: Color) -> Vec<usize> {
+        let mut indices = vec![];
+        for b in 1..(self.get_barrier(c) + 1) {
+            let w = match self.chained_to(b, c) {
+                Some(bj) => block_idx_to_word_idx(bj),
+                None => block_idx_to_word_idx(b),
+            };
+
+            for i in [0, 1, 2] {
+                let w = w + i;
+                let word = self.read_word(w);
+
+                for j in 0..(Word::BITS as usize) {
+                    if get_bit(word, j) as usize == c {
+                        indices.push(w * Word::BITS as usize + j)
+                    }
+                }
+            }
+        }
+
+        indices
+    }
+
+    fn check_bounds(&self, idx: usize) {
+        if idx >= self.size {
+            panic!("index out of bounds");
+        }
+    }
+}
+
+impl fmt::Debug for ChoiceDict {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for b in 1..(self.max_block() + 1) {
             if self.bar0 == b - 1 {
-                print!("|0|")
+                write!(f, "|0|")?;
             }
             if self.bar1 == b - 1 {
-                print!("|1|")
+                write!(f, "|1|")?;
             }
-            let w = Self::block_idx_to_word_idx(b);
-            print!("{:?}", [self.a[w], self.a[w + 1], self.a[w + 2]]);
+            let w = block_idx_to_word_idx(b);
+            write!(f, "{:?}", [self.a[w], self.a[w + 1], self.a[w + 2]])?;
         }
         if self.bar0 == self.max_block() {
-            print!("b0")
+            write!(f, "b0")?;
         }
         if self.bar1 == self.max_block() {
-            print!("b1")
+            write!(f, "b1")?;
         }
-        println!()
-    }
 
-    fn block_size() -> usize {
-        3
-    }
-
-    fn max_block(&self) -> usize {
-        self.a.len() / Self::block_size()
-    }
-
-    fn get_bit(word: Word, idx: usize) -> Word {
-        Word::from(word & (1 << idx) != 0)
-    }
-
-    fn elem_idx_to_word_idx(idx: usize) -> WordIdx {
-        idx / Word::BITS as usize
-    }
-
-    fn word_idx_to_block_idx(w: WordIdx) -> BlockIdx {
-        w / Self::block_size() + 1
-    }
-
-    fn block_idx_to_word_idx(b: BlockIdx) -> WordIdx {
-        b * Self::block_size() - Self::block_size()
+        writeln!(f)
     }
 }
 
@@ -498,11 +529,70 @@ struct BlockType {
     chained_to: [Option<usize>; 2],
 }
 
+pub struct ChoiceDictIterator<'a> {
+    dict: &'a ChoiceDict,
+    b: BlockIdx,
+    //w: WordIdx,
+    i: usize,
+    j: usize,
+    c: Color,
+}
+
+impl ChoiceDictIterator<'_> {
+    pub fn new(dict: &'_ ChoiceDict, c: Color) -> ChoiceDictIterator<'_> {
+        ChoiceDictIterator {
+            dict,
+            b: 1,
+            //       word: 0,
+            i: 0,
+            j: 0,
+            c,
+        }
+    }
+}
+
+impl Iterator for ChoiceDictIterator<'_> {
+    type Item = usize;
+
+    fn next(&mut self) -> Option<usize> {
+        while self.b <= (self.dict.get_barrier(self.c)) {
+            let w = match self.dict.chained_to(self.b, self.c) {
+                Some(bj) => block_idx_to_word_idx(bj),
+                None => block_idx_to_word_idx(self.b),
+            };
+
+            while self.i <= 2 {
+                let w = w + self.i;
+                let word = self.dict.read_word(w);
+
+                while self.j < Word::BITS as usize {
+                    let j = self.j;
+                    self.j += 1;
+
+                    if get_bit(word, j) as usize == self.c {
+                        return Some(w * Word::BITS as usize + j);
+                    }
+                }
+
+                self.j = 0;
+                self.i += 1
+            }
+
+            self.i = 0;
+            self.b += 1;
+        }
+
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use rand::{rngs::StdRng, seq::SliceRandom, Rng, SeedableRng};
+    use crate::data_structures::choice_dictionary::block_size;
 
-    use super::{ChoiceDict, Word};
+    use super::{ChoiceDict, Color, Word};
+    use rand::{rngs::StdRng, seq::SliceRandom, Rng, SeedableRng};
+    use std::{collections::HashSet, process::Child};
 
     #[test]
     fn set_and_remove() {
@@ -512,11 +602,11 @@ mod tests {
         let indices = [1, 12, 4, 33, 9, 10, 23, 2, 17, 8, 7, 6, 5, 4];
 
         for i in indices {
-            set_and_compare(&mut dict, &mut vec, i);
+            write_and_compare(&mut dict, &mut vec, i, 1);
         }
 
         for i in indices {
-            remove_and_compare(&mut dict, &mut vec, i);
+            write_and_compare(&mut dict, &mut vec, i, 0);
         }
     }
 
@@ -529,14 +619,14 @@ mod tests {
         assert_eq!(dict.bar0, num_blocks);
         assert_eq!(dict.bar1, 0);
 
-        for i in 0..24 {
+        for i in 0..(3 * Word::BITS as usize) {
             dict.set(i);
         }
 
         assert_eq!(dict.bar0, num_blocks - 1);
         assert_eq!(dict.bar1, 1);
 
-        for i in 0..24 {
+        for i in 0..(3 * Word::BITS as usize) {
             dict.remove(i);
         }
 
@@ -559,72 +649,107 @@ mod tests {
 
             for b in blocks {
                 let idx = b * 3 * Word::BITS as usize;
-
-                if rng.gen_bool(1.) {
-                    set_and_compare(&mut dict, &mut vec, idx);
-                } else {
-                    //remove_and_compare(&mut dict, &mut vec, idx);
-                }
+                write_and_compare(&mut dict, &mut vec, idx, 1);
             }
         }
     }
 
     #[test]
-    fn set_and_remove_randomly() {
+    fn iterate() {
+        let size = 5 * 3 * Word::BITS as usize;
+        let mut dict = ChoiceDict::new(size);
+        let mut vec = vec![0; size];
+
+        for i in [0, 20, 22, 7, 30, 81, 320, 133, Word::BITS as usize - 1] {
+            write_and_compare(&mut dict, &mut vec, i, 1);
+            iterate_and_compare(&dict, &vec, 1);
+            iterate_and_compare(&dict, &vec, 0);
+        }
+    }
+
+    #[test]
+    fn random() {
         let seed = [0; 32];
         let mut rng = StdRng::from_seed(seed);
 
-        for num_blocks in 2..17 {
-            for _ in 0..200 {
+        for num_blocks in 2..8 {
+            for _ in 0..10 {
                 let blocks = 0..num_blocks;
                 let size = blocks.len() * 3 * Word::BITS as usize;
-                let mut dict = ChoiceDict::from_vec(
+                let mut dict = vec_to_dict(
                     (0..(blocks.len() * 3))
                         .map(|_| rng.gen_range(0..Word::MAX))
                         .collect(),
                 );
                 let mut vec = vec![0; size];
 
-                for _ in 0..(size * 5) {
+                for _ in 0..(size * 3) {
                     let idx = rng.gen_range(0..size);
+                    let c = rng.gen_bool(0.5) as Color;
 
-                    if rng.gen_bool(0.5) {
-                        set_and_compare(&mut dict, &mut vec, idx);
-                    } else {
-                        remove_and_compare(&mut dict, &mut vec, idx);
+                    write_and_compare(&mut dict, &mut vec, idx, c);
+
+                    if rng.gen_bool(0.1) {
+                        iterate_and_compare(&dict, &vec, rng.gen_bool(0.5) as usize)
+                    }
+
+                    if rng.gen_bool(0.1) {
+                        reset_and_compare(&mut dict, &mut vec);
                     }
                 }
             }
         }
     }
 
-    #[test]
-    fn reset() {
-        let mut dict = ChoiceDict::from_vec(vec![2, 4, 4, 1, 1, 6, 4, 120, 77, 3, 1, 123]);
-        let mut vec = vec![0; 4 * 3 * Word::BITS as usize];
+    fn write_and_compare(dict: &mut ChoiceDict, vec: &mut Vec<Word>, idx: usize, c: Color) {
+        if c == 0 {
+            dict.remove(idx);
+        } else {
+            dict.set(idx);
+        }
 
-        reset_and_compare(&mut dict, &mut vec);
-    }
-
-    fn set_and_compare(dict: &mut ChoiceDict, vec: &mut Vec<Word>, idx: usize) {
-        dict.set(idx);
-        vec[idx] = 1;
-        assert_eq!(dict.to_vec(), *vec);
-    }
-
-    fn remove_and_compare(dict: &mut ChoiceDict, vec: &mut Vec<Word>, idx: usize) {
-        dict.remove(idx);
-        vec[idx] = 0;
-
-        assert_eq!(dict.to_vec(), *vec);
+        vec[idx] = c as Word;
+        assert_eq!(dict.to_color_vec(), *vec);
     }
 
     fn reset_and_compare(dict: &mut ChoiceDict, vec: &mut Vec<Word>) {
         dict.reset();
+
         for v in vec.iter_mut() {
             *v = 0;
         }
 
-        assert_eq!(dict.to_vec(), *vec);
+        assert_eq!(dict.to_color_vec(), *vec);
+    }
+
+    fn iterate_and_compare(dict: &ChoiceDict, vec: &[Word], c: Color) {
+        let it = if c == 0 { dict.iter_0() } else { dict.iter_1() };
+
+        let dict_indices: HashSet<usize> = it.collect();
+        let mut vec_indices = HashSet::new();
+
+        for (i, v) in vec.iter().enumerate() {
+            if *v == c as Word {
+                vec_indices.insert(i);
+            }
+        }
+
+        assert_eq!(dict_indices, vec_indices);
+    }
+
+    pub fn vec_to_dict(vec: Vec<Word>) -> ChoiceDict {
+        let num_words = vec.len();
+
+        assert!(num_words % block_size() == 0);
+
+        let num_blocks = num_words / block_size();
+        let size = vec.len() * Word::BITS as usize;
+
+        ChoiceDict {
+            a: vec,
+            bar0: num_blocks,
+            bar1: 0,
+            size,
+        }
     }
 }
