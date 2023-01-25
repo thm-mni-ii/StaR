@@ -108,6 +108,7 @@ def read_data(query):
         le = preprocessing.LabelEncoder()
         le.fit(df.primaryName)
         df["label"] = le.transform(df.primaryName)
+        df["label"] = df.label + 1
 
         df = df[
             [
@@ -127,7 +128,9 @@ def read_data(query):
 
 def create_graph(df):
     print("Building graph")
+
     G = nx.Graph()
+    G.add_nodes_from(df.label.unique())
 
     for film in df.groupby(level=0):
         edges = combinations(film[1].label.values, 2)
