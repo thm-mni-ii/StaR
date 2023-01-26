@@ -68,6 +68,14 @@ impl ChoiceDict {
         return ChoiceDictIterator::new(self, 1);
     }
 
+    pub fn choice_0(&self) -> Option<usize> {
+        self.iter_0().next()
+    }
+
+    pub fn choice_1(&self) -> Option<usize> {
+        self.iter_1().next()
+    }
+
     pub fn reset(&mut self) {
         self.bar0 = self.max_block();
         self.bar1 = 0;
@@ -591,8 +599,6 @@ impl Iterator for ChoiceDictIterator<'_> {
 
 #[cfg(test)]
 mod tests {
-    use crate::data_structures::choice_dictionary::block_size;
-
     use super::{ChoiceDict, Color, Word};
     use rand::{rngs::StdRng, seq::SliceRandom, Rng, SeedableRng};
     use std::collections::HashSet;
@@ -682,6 +688,25 @@ mod tests {
     }
 
     #[test]
+    fn choice() {
+        let mut dict = ChoiceDict::new(100);
+
+        assert!(dict.choice_1().is_none());
+        dict.set(77);
+        dict.set(20);
+        assert!(dict.choice_1() == Some(20) || dict.choice_1() == Some(77));
+        dict.remove(77);
+        assert_eq!(dict.choice_1(), Some(20));
+        
+        for i in 0..100 {
+            dict.set(i);
+        }
+
+        assert!(dict.choice_1().is_some());
+        assert!(dict.choice_0().is_none());
+    }
+
+    #[test]
     fn random() {
         let seed = [0; 32];
         let mut rng = StdRng::from_seed(seed);
@@ -742,21 +767,5 @@ mod tests {
         }
 
         assert_eq!(dict_indices, vec_indices);
-    }
-
-    pub fn vec_to_dict(vec: Vec<Word>) -> ChoiceDict {
-        let num_words = vec.len();
-
-        assert!(num_words % block_size() == 0);
-
-        let num_blocks = num_words / block_size();
-        let size = vec.len() * Word::BITS as usize;
-
-        ChoiceDict {
-            a: vec,
-            bar0: num_blocks,
-            bar1: 0,
-            size,
-        }
     }
 }
