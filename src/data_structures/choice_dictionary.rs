@@ -5,26 +5,10 @@ type BlockIdx = usize;
 type WordIdx = usize;
 type Color = usize;
 
-fn block_size() -> usize {
-    3
-}
-
-fn get_bit(word: Word, idx: usize) -> Word {
-    Word::from(word & (1 << idx) != 0)
-}
-
-fn elem_idx_to_word_idx(idx: usize) -> WordIdx {
-    idx / Word::BITS as usize
-}
-
-fn word_idx_to_block_idx(w: WordIdx) -> BlockIdx {
-    w / block_size() + 1
-}
-
-fn block_idx_to_word_idx(b: BlockIdx) -> WordIdx {
-    b * block_size() - block_size()
-}
-
+/// A 2-color choice dictionary based on the ideas presented in <https://drops.dagstuhl.de/opus/volltexte/2018/10014/pdf/LIPIcs-ISAAC-2018-66.pdf>
+/// (DOI: 10.4230/LIPIcs.ISAAC.2018.66).
+///
+/// Each element of the choice dictionary either has color 0 or color 1. Storing a choice dictionary with n elements requires n + O(1) bits.
 pub struct ChoiceDict {
     a: Vec<Word>,
     bar0: BlockIdx,
@@ -33,6 +17,18 @@ pub struct ChoiceDict {
 }
 
 impl ChoiceDict {
+    /// Return a choice dictionary with `size` elements.
+    ///
+    /// Initially, all elements have the color 0.
+    ///
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use star::data_structures::choice_dictionary::ChoiceDict;
+    ///
+    /// let dict = ChoiceDict::new(1000);
+    /// ```
     pub fn new(size: usize) -> Self {
         let num_words = size.div_ceil(Word::BITS as usize);
         let num_words_padded = if num_words % block_size() == 0 {
@@ -50,37 +46,113 @@ impl ChoiceDict {
         }
     }
 
-    pub fn to_color_vec(&self) -> Vec<Word> {
-        let mut vec = vec![0; self.size];
-
-        for (i, v) in vec.iter_mut().enumerate() {
-            *v = self.get(i);
-        }
-
-        vec
-    }
-
+    /// Return an iterator for iterating over all elements of color 0.
+    ///
+    /// Time complexity per `next()` call: O(1)
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use star::data_structures::choice_dictionary::ChoiceDict;
+    ///
+    /// let dict = ChoiceDict::new(1000);
+    /// let mut it = dict.iter_0();
+    /// let elem = it.next();
+    /// assert_eq!(elem, Some(0));
+    /// ```
     pub fn iter_0(&self) -> ChoiceDictIterator {
         return ChoiceDictIterator::new(self, 0);
     }
 
+    /// Return an iterator for iterating over all elements of color 1.
+    ///
+    /// Time complexity per `next()` call: O(1)
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use star::data_structures::choice_dictionary::ChoiceDict;
+    ///
+    /// let mut dict = ChoiceDict::new(1000);
+    /// dict.set(17);
+    /// let mut it = dict.iter_1();
+    /// let elem = it.next();
+    /// assert_eq!(elem, Some(17));
+    /// ```
     pub fn iter_1(&self) -> ChoiceDictIterator {
         return ChoiceDictIterator::new(self, 1);
     }
 
+    /// Return an arbitrary element of color 0 (if present).
+    ///
+    /// Time complexity: O(1)
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use star::data_structures::choice_dictionary::ChoiceDict;
+    ///
+    /// let dict = ChoiceDict::new(1000);
+    /// let elem = dict.choice_0();
+    /// assert!(elem.is_some());
+    /// ```
     pub fn choice_0(&self) -> Option<usize> {
         self.iter_0().next()
     }
 
+    /// Return an arbitrary element of color 1 (if present).
+    ///
+    /// Time complexity: O(1)
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use star::data_structures::choice_dictionary::ChoiceDict;
+    ///
+    /// let mut dict = ChoiceDict::new(1000);
+    /// dict.set(100);
+    /// let elem = dict.choice_1();
+    /// assert!(elem.is_some());
+    /// ```
     pub fn choice_1(&self) -> Option<usize> {
         self.iter_1().next()
     }
 
+    /// Set the color of all elements to 0.
+    ///
+    /// Time complexity: O(1)
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use star::data_structures::choice_dictionary::ChoiceDict;
+    ///
+    /// let mut dict = ChoiceDict::new(1000);
+    /// dict.set(100);
+    /// dict.set(263);
+    /// dict.set(827);
+    /// dict.reset();
+    /// assert!(dict.choice_1().is_none());
+    /// ```
     pub fn reset(&mut self) {
         self.bar0 = self.max_block();
         self.bar1 = 0;
     }
 
+    /// Retrieve the color of the element at the given index.
+    ///
+    /// Time complexity: O(1)
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use star::data_structures::choice_dictionary::ChoiceDict;
+    ///
+    /// let mut dict = ChoiceDict::new(1000);
+    /// dict.set(532);
+    /// let elem = dict.get(532);
+    /// assert_eq!(elem, 1);
+    /// ```
     pub fn get(&self, idx: usize) -> Word {
         self.check_bounds(idx);
 
@@ -91,10 +163,37 @@ impl ChoiceDict {
         get_bit(wrd, offset)
     }
 
+    /// Set the color of the element at the given index to 1.
+    ///
+    /// Time complexity: O(1)
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use star::data_structures::choice_dictionary::ChoiceDict;
+    ///
+    /// let mut dict = ChoiceDict::new(1000);
+    /// dict.set(692);
+    /// assert_eq!(dict.get(692), 1);
+    /// ```
     pub fn set(&mut self, idx: usize) {
         self.write(idx, 1)
     }
 
+    /// Set the color of the element at the given index to 0.
+    ///
+    /// Time complexity: O(1)
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use star::data_structures::choice_dictionary::ChoiceDict;
+    ///
+    /// let mut dict = ChoiceDict::new(1000);
+    /// dict.set(302);
+    /// dict.remove(302);
+    /// assert_eq!(dict.get(302), 0);
+    /// ```
     pub fn remove(&mut self, idx: usize) {
         self.write(idx, 0)
     }
@@ -471,37 +570,6 @@ impl ChoiceDict {
         self.a.len() / block_size()
     }
 
-    pub fn iterate_1(&mut self) -> Vec<usize> {
-        self.iterate(1)
-    }
-
-    pub fn iterate_0(&mut self) -> Vec<usize> {
-        self.iterate(0)
-    }
-
-    fn iterate(&mut self, c: Color) -> Vec<usize> {
-        let mut indices = vec![];
-        for b in 1..(self.get_barrier(c) + 1) {
-            let w = match self.chained_to(b, c) {
-                Some(bj) => block_idx_to_word_idx(bj),
-                None => block_idx_to_word_idx(b),
-            };
-
-            for i in [0, 1, 2] {
-                let w = w + i;
-                let word = self.read_word(w);
-
-                for j in 0..(Word::BITS as usize) {
-                    if get_bit(word, j) as usize == c {
-                        indices.push(w * Word::BITS as usize + j)
-                    }
-                }
-            }
-        }
-
-        indices
-    }
-
     fn check_bounds(&self, idx: usize) {
         if idx >= self.size {
             panic!("index out of bounds");
@@ -532,13 +600,7 @@ impl fmt::Debug for ChoiceDict {
     }
 }
 
-struct BlockType {
-    b: BlockIdx,
-    w: WordIdx,
-    is_left: [bool; 2],
-    chained_to: [Option<usize>; 2],
-}
-
+/// An iterator for iterating over the elements of a specific color in a choice dictionary.
 pub struct ChoiceDictIterator<'a> {
     dict: &'a ChoiceDict,
     b: BlockIdx,
@@ -549,7 +611,7 @@ pub struct ChoiceDictIterator<'a> {
 }
 
 impl ChoiceDictIterator<'_> {
-    pub fn new(dict: &'_ ChoiceDict, c: Color) -> ChoiceDictIterator<'_> {
+    fn new(dict: &'_ ChoiceDict, c: Color) -> ChoiceDictIterator<'_> {
         ChoiceDictIterator {
             dict,
             b: 1,
@@ -595,6 +657,33 @@ impl Iterator for ChoiceDictIterator<'_> {
 
         None
     }
+}
+
+struct BlockType {
+    b: BlockIdx,
+    w: WordIdx,
+    is_left: [bool; 2],
+    chained_to: [Option<usize>; 2],
+}
+
+fn block_size() -> usize {
+    3
+}
+
+fn get_bit(word: Word, idx: usize) -> Word {
+    Word::from(word & (1 << idx) != 0)
+}
+
+fn elem_idx_to_word_idx(idx: usize) -> WordIdx {
+    idx / Word::BITS as usize
+}
+
+fn word_idx_to_block_idx(w: WordIdx) -> BlockIdx {
+    w / block_size() + 1
+}
+
+fn block_idx_to_word_idx(b: BlockIdx) -> WordIdx {
+    b * block_size() - block_size()
 }
 
 #[cfg(test)]
@@ -697,7 +786,7 @@ mod tests {
         assert!(dict.choice_1() == Some(20) || dict.choice_1() == Some(77));
         dict.remove(77);
         assert_eq!(dict.choice_1(), Some(20));
-        
+
         for i in 0..100 {
             dict.set(i);
         }
@@ -741,7 +830,7 @@ mod tests {
         }
 
         vec[idx] = c as Word;
-        assert_eq!(dict.to_color_vec(), *vec);
+        assert_eq!(dict_to_vec(dict), *vec);
     }
 
     fn reset_and_compare(dict: &mut ChoiceDict, vec: &mut Vec<Word>) {
@@ -751,7 +840,7 @@ mod tests {
             *v = 0;
         }
 
-        assert_eq!(dict.to_color_vec(), *vec);
+        assert_eq!(dict_to_vec(dict), *vec);
     }
 
     fn iterate_and_compare(dict: &ChoiceDict, vec: &[Word], c: Color) {
@@ -767,5 +856,15 @@ mod tests {
         }
 
         assert_eq!(dict_indices, vec_indices);
+    }
+
+    pub fn dict_to_vec(dict: &ChoiceDict) -> Vec<Word> {
+        let mut vec = vec![0; dict.size];
+
+        for (i, v) in vec.iter_mut().enumerate() {
+            *v = dict.get(i);
+        }
+
+        vec
     }
 }
