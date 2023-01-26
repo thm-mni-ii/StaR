@@ -603,23 +603,50 @@ impl fmt::Debug for ChoiceDict {
 /// An iterator for iterating over the elements of a specific color in a choice dictionary.
 pub struct ChoiceDictIterator<'a> {
     dict: &'a ChoiceDict,
+    word: Word,
+    c: Color,
     b: BlockIdx,
-    //w: WordIdx,
+    w: WordIdx,
     i: usize,
     j: usize,
-    c: Color,
 }
 
 impl ChoiceDictIterator<'_> {
     fn new(dict: &'_ ChoiceDict, c: Color) -> ChoiceDictIterator<'_> {
-        ChoiceDictIterator {
+        let mut it = ChoiceDictIterator {
             dict,
-            b: 1,
-            //       word: 0,
+            word: 0,
+            c,
+            b: 0,
+            w: 0,
             i: 0,
             j: 0,
-            c,
+        };
+        it.next_block();
+
+        it
+    }
+
+    fn next_block(&mut self) {
+        self.b += 1;
+
+        if self.b > self.dict.get_barrier(self.c) {
+            return;
         }
+
+        let w = match self.dict.chained_to(self.b, self.c) {
+            Some(bj) => block_idx_to_word_idx(bj),
+            None => block_idx_to_word_idx(self.b),
+        };
+
+        self.i = 0;
+        self.w = w;
+        self.word = self.dict.read_word(w);
+    }
+
+    fn next_word(&mut self) {
+        self.j = 0;
+        self.i += 1
     }
 }
 
@@ -628,13 +655,8 @@ impl Iterator for ChoiceDictIterator<'_> {
 
     fn next(&mut self) -> Option<usize> {
         while self.b <= (self.dict.get_barrier(self.c)) {
-            let w = match self.dict.chained_to(self.b, self.c) {
-                Some(bj) => block_idx_to_word_idx(bj),
-                None => block_idx_to_word_idx(self.b),
-            };
-
             while self.i < block_size() {
-                let w = w + self.i;
+                let w = self.w + self.i;
                 let word = self.dict.read_word(w);
 
                 while self.j < Word::BITS as usize {
@@ -647,12 +669,10 @@ impl Iterator for ChoiceDictIterator<'_> {
                     }
                 }
 
-                self.j = 0;
-                self.i += 1
+                self.next_word()
             }
 
-            self.i = 0;
-            self.b += 1;
+            self.next_block();
         }
 
         None
