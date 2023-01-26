@@ -35,13 +35,15 @@ pub struct ChoiceDict {
 impl ChoiceDict {
     pub fn new(size: usize) -> Self {
         let num_words = size.div_ceil(Word::BITS as usize);
-
-        assert!(num_words % block_size() == 0);
-
-        let num_blocks = num_words / block_size();
+        let num_words_padded = if num_words % block_size() == 0 {
+            num_words
+        } else {
+            (num_words / block_size() + 1) * block_size()
+        };
+        let num_blocks = num_words_padded / block_size();
 
         Self {
-            a: vec![0; num_words],
+            a: vec![0; num_words_padded],
             bar0: num_blocks,
             bar1: 0,
             size,
@@ -561,16 +563,17 @@ impl Iterator for ChoiceDictIterator<'_> {
                 None => block_idx_to_word_idx(self.b),
             };
 
-            while self.i <= 2 {
+            while self.i < block_size() {
                 let w = w + self.i;
                 let word = self.dict.read_word(w);
 
                 while self.j < Word::BITS as usize {
                     let j = self.j;
                     self.j += 1;
+                    let idx = w * Word::BITS as usize + j;
 
-                    if get_bit(word, j) as usize == self.c {
-                        return Some(w * Word::BITS as usize + j);
+                    if idx < self.dict.size && get_bit(word, j) as usize == self.c {
+                        return Some(idx);
                     }
                 }
 
@@ -592,7 +595,18 @@ mod tests {
 
     use super::{ChoiceDict, Color, Word};
     use rand::{rngs::StdRng, seq::SliceRandom, Rng, SeedableRng};
-    use std::{collections::HashSet, process::Child};
+    use std::collections::HashSet;
+
+    #[test]
+    fn various_sizes() {
+        for size in 1..300 {
+            let mut dict = ChoiceDict::new(size);
+            let mut vec = vec![0; size];
+            for i in 0..size {
+                write_and_compare(&mut dict, &mut vec, i, 1);
+            }
+        }
+    }
 
     #[test]
     fn set_and_remove() {
@@ -672,30 +686,23 @@ mod tests {
         let seed = [0; 32];
         let mut rng = StdRng::from_seed(seed);
 
-        for num_blocks in 2..8 {
-            for _ in 0..10 {
-                let blocks = 0..num_blocks;
-                let size = blocks.len() * 3 * Word::BITS as usize;
-                let mut dict = vec_to_dict(
-                    (0..(blocks.len() * 3))
-                        .map(|_| rng.gen_range(0..Word::MAX))
-                        .collect(),
-                );
-                let mut vec = vec![0; size];
+        for _ in 0..50 {
+            let size = rng.gen_range(1..1000);
+            let mut dict = ChoiceDict::new(size);
+            let mut vec = vec![0; size];
 
-                for _ in 0..(size * 3) {
-                    let idx = rng.gen_range(0..size);
-                    let c = rng.gen_bool(0.5) as Color;
+            for _ in 0..(size * 3) {
+                let idx = rng.gen_range(0..size);
+                let c = rng.gen_bool(0.5) as Color;
 
-                    write_and_compare(&mut dict, &mut vec, idx, c);
+                write_and_compare(&mut dict, &mut vec, idx, c);
 
-                    if rng.gen_bool(0.1) {
-                        iterate_and_compare(&dict, &vec, rng.gen_bool(0.5) as usize)
-                    }
+                if rng.gen_bool(0.1) {
+                    iterate_and_compare(&dict, &vec, rng.gen_bool(0.5) as usize)
+                }
 
-                    if rng.gen_bool(0.1) {
-                        reset_and_compare(&mut dict, &mut vec);
-                    }
+                if rng.gen_bool(0.1) {
+                    reset_and_compare(&mut dict, &mut vec);
                 }
             }
         }
