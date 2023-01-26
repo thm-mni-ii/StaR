@@ -25,7 +25,7 @@ impl ChoiceDict {
     /// # Example
     ///
     /// ```
-    /// use star::data_structures::choice_dictionary::ChoiceDict;
+    /// use star::data_structures::choice_dict::ChoiceDict;
     ///
     /// let dict = ChoiceDict::new(1000);
     /// ```
@@ -53,7 +53,7 @@ impl ChoiceDict {
     /// # Example
     ///
     /// ```
-    /// use star::data_structures::choice_dictionary::ChoiceDict;
+    /// use star::data_structures::choice_dict::ChoiceDict;
     ///
     /// let dict = ChoiceDict::new(1000);
     /// let mut it = dict.iter_0();
@@ -71,7 +71,7 @@ impl ChoiceDict {
     /// # Example
     ///
     /// ```
-    /// use star::data_structures::choice_dictionary::ChoiceDict;
+    /// use star::data_structures::choice_dict::ChoiceDict;
     ///
     /// let mut dict = ChoiceDict::new(1000);
     /// dict.set(17);
@@ -90,7 +90,7 @@ impl ChoiceDict {
     /// # Example
     ///
     /// ```
-    /// use star::data_structures::choice_dictionary::ChoiceDict;
+    /// use star::data_structures::choice_dict::ChoiceDict;
     ///
     /// let dict = ChoiceDict::new(1000);
     /// let elem = dict.choice_0();
@@ -107,7 +107,7 @@ impl ChoiceDict {
     /// # Example
     ///
     /// ```
-    /// use star::data_structures::choice_dictionary::ChoiceDict;
+    /// use star::data_structures::choice_dict::ChoiceDict;
     ///
     /// let mut dict = ChoiceDict::new(1000);
     /// dict.set(100);
@@ -125,7 +125,7 @@ impl ChoiceDict {
     /// # Example
     ///
     /// ```
-    /// use star::data_structures::choice_dictionary::ChoiceDict;
+    /// use star::data_structures::choice_dict::ChoiceDict;
     ///
     /// let mut dict = ChoiceDict::new(1000);
     /// dict.set(100);
@@ -146,7 +146,7 @@ impl ChoiceDict {
     /// # Example
     ///
     /// ```
-    /// use star::data_structures::choice_dictionary::ChoiceDict;
+    /// use star::data_structures::choice_dict::ChoiceDict;
     ///
     /// let mut dict = ChoiceDict::new(1000);
     /// dict.set(532);
@@ -170,7 +170,7 @@ impl ChoiceDict {
     /// # Example
     ///
     /// ```
-    /// use star::data_structures::choice_dictionary::ChoiceDict;
+    /// use star::data_structures::choice_dict::ChoiceDict;
     ///
     /// let mut dict = ChoiceDict::new(1000);
     /// dict.set(692);
@@ -187,7 +187,7 @@ impl ChoiceDict {
     /// # Example
     ///
     /// ```
-    /// use star::data_structures::choice_dictionary::ChoiceDict;
+    /// use star::data_structures::choice_dict::ChoiceDict;
     ///
     /// let mut dict = ChoiceDict::new(1000);
     /// dict.set(302);
