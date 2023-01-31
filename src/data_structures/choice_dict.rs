@@ -714,9 +714,12 @@ mod tests {
 
     #[test]
     fn various_sizes() {
-        for size in 1..300 {
+        let count = if cfg!(miri) { 20 } else { 300 };
+
+        for size in 1..count {
             let mut dict = ChoiceDict::new(size);
             let mut vec = vec![0; size];
+
             for i in 0..size {
                 write_and_compare(&mut dict, &mut vec, i, 1);
             }
@@ -769,8 +772,9 @@ mod tests {
         let size = blocks.len() * 3 * Word::BITS as usize;
         let seed = [0; 32];
         let mut rng = StdRng::from_seed(seed);
+        let count = if cfg!(miri) { 1 } else { 1000 };
 
-        for _ in 0..1000 {
+        for _ in 0..count {
             let mut dict = ChoiceDict::new(size);
             let mut vec = vec![0; size];
             let mut blocks = blocks.clone();
@@ -788,8 +792,13 @@ mod tests {
         let size = 5 * 3 * Word::BITS as usize;
         let mut dict = ChoiceDict::new(size);
         let mut vec = vec![0; size];
+        let indices = if cfg!(miri) {
+            vec![0, 20, 22]
+        } else {
+            vec![0, 20, 22, 7, 30, 81, 320, 133, size - 1]
+        };
 
-        for i in [0, 20, 22, 7, 30, 81, 320, 133, Word::BITS as usize - 1] {
+        for i in indices {
             write_and_compare(&mut dict, &mut vec, i, 1);
             iterate_and_compare(&dict, &vec, 1);
             iterate_and_compare(&dict, &vec, 0);
@@ -819,13 +828,15 @@ mod tests {
     fn random() {
         let seed = [0; 32];
         let mut rng = StdRng::from_seed(seed);
+        let count = if cfg!(miri) { 3 } else { 50 };
 
-        for _ in 0..50 {
+        for _ in 0..count {
             let size = rng.gen_range(1..1000);
             let mut dict = ChoiceDict::new(size);
             let mut vec = vec![0; size];
+            let inner_count = if cfg!(miri) { 3 } else { size * 3 };
 
-            for _ in 0..(size * 3) {
+            for _ in 0..inner_count {
                 let idx = rng.gen_range(0..size);
                 let c = rng.gen_bool(0.5) as Color;
 
