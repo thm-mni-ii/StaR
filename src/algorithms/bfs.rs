@@ -44,7 +44,7 @@ impl<'a> Iterator for BFS<'a> {
 }
 
 impl<'a> BFS<'a> {
-    /// Returns a new BFS iterator. Takes a reference to a graph and a startin node
+    /// Returns a new BFS iterator. Takes a reference to a graph and a starting node.
     ///
     /// # Example
     /// ```
