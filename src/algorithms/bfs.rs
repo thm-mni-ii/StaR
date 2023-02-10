@@ -1,6 +1,7 @@
 use crate::data_structures::graph::Graph;
 use std::collections::VecDeque;
 
+/// An iterator iterating over nodes of a graph in a bredth-first-search order
 pub struct BFS<'a> {
     start: Option<usize>,
     graph: &'a Graph,
@@ -43,6 +44,23 @@ impl<'a> Iterator for BFS<'a> {
 }
 
 impl<'a> BFS<'a> {
+    /// Returns a new BFS iterator. Takes a reference to a graph and a startin node
+    ///
+    /// # Example
+    /// ```
+    /// use star::algorithms::bfs::BFS;
+    /// use star::data_structures::graph::Graph;
+    /// let graph = Graph::new_with_edges(
+    ///     2,
+    ///     vec![
+    ///         [0].to_vec(),
+    ///         [1].to_vec(),
+    ///     ],
+    /// );
+    ///
+    ///  BFS::new(&graph, 0);
+    /// ```
+
     pub fn new(graph: &'a Graph, start: usize) -> Self {
         Self {
             start: Some(start),
