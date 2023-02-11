@@ -45,7 +45,8 @@ impl<'a> Iterator for BFS<'a> {
 
 impl<'a> BFS<'a> {
     /// Returns a new BFS iterator. Takes a reference to a graph and a starting node.
-    ///
+    /// 
+    /// Time complexity per `next()` call: O(n)
     /// # Example
     /// ```
     /// use star::algorithms::bfs::BFS;
