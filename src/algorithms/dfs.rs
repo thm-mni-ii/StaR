@@ -2,7 +2,7 @@ use crate::data_structures::graph::Graph;
 
 //https://drops.dagstuhl.de/opus/volltexte/2015/4921/pdf/21.pdf
 
-pub struct DFS<'a> {
+pub struct DFSSpaceEfficient<'a> {
     start: usize,
     start_needed: bool,
     graph: &'a Graph,
@@ -12,7 +12,7 @@ pub struct DFS<'a> {
     preprocess: bool,
 }
 
-impl<'a> Iterator for DFS<'a> {
+impl<'a> Iterator for DFSSpaceEfficient<'a> {
     type Item = usize;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -63,7 +63,7 @@ impl<'a> Iterator for DFS<'a> {
     }
 }
 
-impl<'a> DFS<'a> {
+impl<'a> DFSSpaceEfficient<'a> {
     pub fn new_preprocess(graph: &'a Graph, start: usize) -> Self {
         Self {
             start,
@@ -153,9 +153,93 @@ impl<'a> DFS<'a> {
     }
 }
 
+pub struct StandardDFS<'a> {
+    start: usize,
+    start_needed: bool,
+    graph: &'a Graph,
+    stack: Vec<(usize, u32)>,
+    colors: Vec<u8>,
+    preprocess: bool,
+}
+
+impl Iterator for StandardDFS<'_> {
+    type Item = usize;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.start_needed {
+            self.start_needed = false;
+            self.stack.push((self.start, 0));
+
+            if self.preprocess {
+                return Some(self.start);
+            }
+        }
+
+        if self.stack.is_empty() {
+            for i in 0..self.colors.len() {
+                if self.colors[i] == 0 {
+                    self.stack.push((i, 0));
+                    if self.preprocess {
+                        return Some(i);
+                    }
+                    break;
+                }
+            }
+            if self.stack.is_empty() {
+                return None;
+            }
+        }
+
+        let temp = self.stack.pop().unwrap();
+        self.colors[temp.0] = 1; // gray
+        let neighbors = self.graph.neighbors(temp.0);
+
+        if temp.1 < (neighbors.len() as u32) {
+            self.stack.push((temp.0, temp.1 + 1));
+
+            if self.colors[neighbors[temp.1 as usize]] == 0 {
+                self.stack.push((neighbors[temp.1 as usize], 0));
+                if self.preprocess {
+                    return Some(neighbors[temp.1 as usize]);
+                }
+            }
+        } else {
+            self.colors[temp.0] = 2;
+            if !self.preprocess {
+                return Some(temp.0);
+            }
+        }
+        self.next()
+    }
+}
+
+impl<'a> StandardDFS<'a> {
+    pub fn new_preprocess(graph: &'a Graph, start: usize) -> Self {
+        Self {
+            start,
+            start_needed: true,
+            graph,
+            stack: Vec::new(),
+            colors: vec![0_u8; graph.nodes.len()],
+            preprocess: true,
+        }
+    }
+
+    pub fn new_postprocess(graph: &'a Graph, start: usize) -> Self {
+        Self {
+            start,
+            start_needed: true,
+            graph,
+            stack: Vec::new(),
+            colors: vec![0_u8; graph.nodes.len()],
+            preprocess: false,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::{algorithms::dfs::DFS, data_structures::graph::Graph};
+    use crate::{algorithms::dfs::{DFSSpaceEfficient, StandardDFS}, data_structures::graph::Graph};
 
     #[test]
     fn test_first_preprocess() {
@@ -171,7 +255,8 @@ mod tests {
             ],
         );
 
-        assert_eq!(DFS::new_preprocess(&graph, 0).next().unwrap(), 0)
+        assert_eq!(DFSSpaceEfficient::new_preprocess(&graph, 0).next().unwrap(), 0);
+        assert_eq!(StandardDFS::new_preprocess(&graph, 0).next().unwrap(), 0);
     }
 
     #[test]
@@ -188,7 +273,8 @@ mod tests {
             ],
         );
 
-        assert_eq!(DFS::new_postprocess(&graph, 0).next().unwrap(), 3);
+        assert_eq!(DFSSpaceEfficient::new_postprocess(&graph, 0).next().unwrap(), 3);
+        assert_eq!(StandardDFS::new_postprocess(&graph, 0).next().unwrap(), 3);
     }
 
     #[test]
@@ -206,7 +292,11 @@ mod tests {
         );
 
         assert_eq!(
-            DFS::new_preprocess(&graph, 0).collect::<Vec<usize>>(),
+            DFSSpaceEfficient::new_preprocess(&graph, 0).collect::<Vec<usize>>(),
+            vec![0, 3, 2, 1, 4, 5]
+        );
+        assert_eq!(
+            StandardDFS::new_preprocess(&graph, 0).collect::<Vec<usize>>(),
             vec![0, 3, 2, 1, 4, 5]
         )
     }
@@ -226,7 +316,11 @@ mod tests {
         );
 
         assert_eq!(
-            DFS::new_postprocess(&graph, 0).collect::<Vec<usize>>(),
+            DFSSpaceEfficient::new_postprocess(&graph, 0).collect::<Vec<usize>>(),
+            vec![3, 4, 1, 2, 0, 5]
+        );
+        assert_eq!(
+            StandardDFS::new_postprocess(&graph, 0).collect::<Vec<usize>>(),
             vec![3, 4, 1, 2, 0, 5]
         )
     }
@@ -246,9 +340,13 @@ mod tests {
         );
 
         assert_eq!(
-            DFS::new_preprocess(&graph, 2).collect::<Vec<usize>>(),
+            DFSSpaceEfficient::new_preprocess(&graph, 2).collect::<Vec<usize>>(),
             vec![2, 0, 3, 1, 4, 5]
-        )
+        );
+        assert_eq!(
+            StandardDFS::new_preprocess(&graph, 2).collect::<Vec<usize>>(),
+            vec![2, 0, 3, 1, 4, 5]
+        );
     }
 
     #[test]
@@ -266,8 +364,12 @@ mod tests {
         );
 
         assert_eq!(
-            DFS::new_postprocess(&graph, 2).collect::<Vec<usize>>(),
+            DFSSpaceEfficient::new_postprocess(&graph, 2).collect::<Vec<usize>>(),
             vec![3, 0, 4, 1, 2, 5]
-        )
+        );
+        assert_eq!(
+            StandardDFS::new_postprocess(&graph, 2).collect::<Vec<usize>>(),
+            vec![3, 0, 4, 1, 2, 5]
+        );
     }
 }
