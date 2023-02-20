@@ -1,12 +1,11 @@
 use core::panic;
 use std::{
-    fs::File,
-    io::{BufRead, BufReader, ErrorKind},
+    io::{BufRead, ErrorKind, BufReader, Read},
 };
 
 type NodeType = usize;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Graph {
     pub nodes: Vec<u8>, //0: valid entry, 1: invalid entry
     pub edges: Vec<Vec<usize>>,
@@ -119,10 +118,11 @@ impl Graph {
     }
 }
 
-impl TryFrom<BufReader<File>> for Graph {
+
+impl<U: Read> TryFrom<BufReader<U>> for Graph {
     type Error = std::io::Error;
 
-    fn try_from(reader: BufReader<File>) -> Result<Self, Self::Error> {
+    fn try_from(reader: BufReader<U>) -> Result<Self, Self::Error> {
         let mut graph: Option<Graph> = None;
         let mut order: Option<usize> = None;
         for line in reader.lines() {
@@ -198,7 +198,43 @@ fn parse_order(elements: &[&str]) -> Result<usize, std::io::Error> {
 
 #[cfg(test)]
 mod tests {
+    use std::io::BufReader;
+
     use crate::data_structures::graph::Graph;
+
+    #[test]
+    fn test_graph_reader_successful() {
+        let test = "p edge 6 4\ne 1 4\ne 1 3\ne 2 5\ne 2 3".as_bytes();
+
+        let graph = Graph::try_from(BufReader::new(test));
+        assert_eq!(graph.unwrap(), Graph::new_with_edges(
+            6,
+            vec![
+                [3, 2].to_vec(),
+                [4, 2].to_vec(),
+                [0, 1].to_vec(),
+                [0].to_vec(),
+                [1].to_vec(),
+                [].to_vec(),
+            ],
+        ))
+    }
+
+    #[test]
+    fn test_graph_reader_node_zero() {
+        let test = "p edge 6 4\ne 1 4\ne 1 3\ne 2 0\ne 2 3".as_bytes();
+
+        let graph = Graph::try_from(BufReader::new(test));
+        assert!(graph.is_err())
+    }
+
+    #[test]
+    fn test_graph_reader_node_too_big() {
+        let test = "p edge 6 4\ne 1 4\ne 1 3\ne 2 7\ne 2 3".as_bytes();
+
+        let graph = Graph::try_from(BufReader::new(test));
+        assert!(graph.is_err())
+    }
 
     #[test]
     #[should_panic]
