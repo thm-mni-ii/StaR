@@ -108,7 +108,7 @@ impl<'a> DFSSpaceEfficient<'a> {
         if self.stack.len() == self.stack.capacity()
             || self.stack.len() == self.stack.capacity() / 2
         {
-            self.t.pop().unwrap();
+            self.t.pop();
         }
         self.stack.pop().unwrap()
     }
@@ -152,6 +152,141 @@ impl<'a> DFSSpaceEfficient<'a> {
         }
     }
 }
+
+//-----------------------------------------------------------------------------------------------------------
+
+pub struct DFSLinearTime<'a> {
+    start: usize,
+    start_needed: bool,
+    graph: &'a Graph,
+    stack: Vec<(usize, u32)>,
+    t: Vec<(usize, u32)>,
+    colors: Vec<u8>,
+    preprocess: bool,
+    d: Vec<Option<usize>>
+}
+
+impl Iterator for DFSLinearTime<'_> {
+    type Item = usize;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.start_needed {
+            self.start_needed = false;
+            self.push_to_stack((self.start, 0));
+
+            if self.preprocess {
+                return Some(self.start);
+            }
+        }
+
+        if self.stack.is_empty() {
+            for i in 0..self.colors.len() {
+                if self.colors[i] == 0 && self.t.is_empty() {
+                    self.push_to_stack((i, 0));
+                    if self.preprocess {
+                        return Some(i);
+                    }
+                    break;
+                }
+            }
+            if self.stack.is_empty() && self.t.is_empty() {
+                return None;
+            }
+        }
+
+        let temp = self.pop_from_stack();
+        self.colors[temp.0] = 1; // gray
+        let neighbors = self.graph.neighbors(temp.0);
+
+        if temp.1 < (neighbors.len() as u32) {
+            self.push_to_stack((temp.0, temp.1 + 1));
+
+            if self.colors[neighbors[temp.1 as usize]] == 0 {
+                self.push_to_stack((neighbors[temp.1 as usize], 0));
+                if self.preprocess {
+                    return Some(neighbors[temp.1 as usize]);
+                }
+            }
+        } else {
+            self.colors[temp.0] = 2;
+            if !self.preprocess {
+                return Some(temp.0);
+            }
+        }
+        self.next()
+    }
+}
+
+impl<'a> DFSLinearTime<'a> {
+    pub fn new_preprocess(graph: &'a Graph, start: usize) -> Self {
+        Self {
+            start,
+            start_needed: true,
+            graph,
+            stack: Vec::with_capacity(2),
+            t: Vec::new(),
+            colors: vec![0_u8; graph.nodes.len()],
+            preprocess: true,
+            d: vec![None; graph.nodes.len()]
+        }
+    }
+
+    pub fn new_postprocess(graph: &'a Graph, start: usize) -> Self {
+        Self {
+            start,
+            start_needed: true,
+            graph,
+            stack: Vec::with_capacity(2), //s'
+            t: Vec::new(),
+            colors: vec![0_u8; graph.nodes.len()],
+            preprocess: false,
+            d: vec![None; graph.nodes.len()]
+        }
+    }
+
+    fn push_to_stack(&mut self, to_push: (usize, u32)) {
+        if self.stack.len() >= self.stack.capacity() {
+            self.stack = Vec::with_capacity(self.stack.capacity());
+        }
+        self.stack.push(to_push);
+        self.d[to_push.0] = Some(self.t.len());
+
+        if self.stack.len() == self.stack.capacity()
+            || self.stack.len() == self.stack.capacity() / 2
+        {
+            self.t.push(to_push);
+        }
+    }
+
+    fn pop_from_stack(&mut self) -> (usize, u32) {
+        if self.stack.is_empty() {
+            self.restore_segment();
+        }
+        if self.stack.len() == self.stack.capacity()
+            || self.stack.len() == self.stack.capacity() / 2
+        {
+            self.t.pop();
+        }
+        self.stack.pop().unwrap()
+    }
+
+    fn restore_segment(&mut self) {
+        for v in 0..self.d.len() {
+            if self.d[v].is_some() && self.d[v].unwrap() == self.t.len() && self.colors[v] == 1 {
+                self.stack.push((v, 0));
+                self.colors[v] = 0
+            }
+        }
+
+        for v in 0..self.stack.len() {
+            self.colors[v] = 1;
+        }
+        //wird eine Kante (u, v) entdeckt, wird sie auf den Stack gepusht wenn D[v] sagt, dass v zum obersten Segment von S gehört und wenn v grau ist, v wird dann weiß gefärbt
+        //wenn die restoration abgeschlossen ist, sind alle Knoten des oberen Segments weiß, sie werden dann grauu gefärbt
+    }
+}
+
+//-----------------------------------------------------------------------------------------------------------
 
 pub struct StandardDFS<'a> {
     start: usize,
@@ -209,6 +344,7 @@ impl Iterator for StandardDFS<'_> {
                 return Some(temp.0);
             }
         }
+
         self.next()
     }
 }
@@ -239,7 +375,7 @@ impl<'a> StandardDFS<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{algorithms::dfs::{DFSSpaceEfficient, StandardDFS}, data_structures::graph::Graph};
+    use crate::{algorithms::dfs::{DFSSpaceEfficient, StandardDFS, DFSLinearTime}, data_structures::graph::Graph};
 
     #[test]
     fn test_first_preprocess() {
@@ -257,6 +393,7 @@ mod tests {
 
         assert_eq!(DFSSpaceEfficient::new_preprocess(&graph, 0).next().unwrap(), 0);
         assert_eq!(StandardDFS::new_preprocess(&graph, 0).next().unwrap(), 0);
+        assert_eq!(DFSLinearTime::new_preprocess(&graph, 0).next().unwrap(), 0);
     }
 
     #[test]
@@ -321,6 +458,10 @@ mod tests {
         );
         assert_eq!(
             StandardDFS::new_postprocess(&graph, 0).collect::<Vec<usize>>(),
+            vec![3, 4, 1, 2, 0, 5]
+        );
+        assert_eq!(
+            DFSLinearTime::new_postprocess(&graph, 0).collect::<Vec<usize>>(),
             vec![3, 4, 1, 2, 0, 5]
         )
     }
