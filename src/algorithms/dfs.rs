@@ -272,11 +272,6 @@ impl<'a> DFSLinearTime<'a> {
 
     fn restore_segment(&mut self) {
         self.start_needed = true;
-        for c in 0..self.colors.len() {
-            if self.colors[c] == (1_u8) {
-                self.colors[c] = 0;
-            }
-        }
         let old_top_of_t = self.t[self.t.len() - 1];
         self.t = Vec::new();
 
