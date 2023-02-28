@@ -65,7 +65,7 @@ impl<'a> Iterator for DFS<'a> {
 impl<'a> DFS<'a> {
     /// Returns a DFS iterator iterating over nodes of the given graph in preprocess order. Takes a reference to a graph and a starting node as arguments.
     ///
-    /// Time complexity per `next()` call: O((n + m) log n)
+    /// Time complexity for entire DFS: O((n + m) log n)
     /// # Example
     /// ```
     /// use star::algorithms::dfs::DFS;
