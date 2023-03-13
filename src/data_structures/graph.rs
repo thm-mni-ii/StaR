@@ -228,6 +228,17 @@ impl Graph {
 impl<U: Read> TryFrom<BufReader<U>> for Graph {
     type Error = std::io::Error;
 
+    /// Reads a graph from a [.gr](https://pacechallenge.org/2019/vc/vc_format/) file and returns a Result containing either the parsed graph or an error.
+    ///
+    /// # Example
+    /// ```
+    /// use std::io::BufReader;
+    /// use star::data_structures::graph::Graph;
+    ///
+    /// let test = "p edge 6 4\ne 1 4\ne 1 3\ne 2 5\ne 2 3".as_bytes();
+    /// Graph::try_from(BufReader::new(test));
+    /// ```
+
     fn try_from(reader: BufReader<U>) -> Result<Self, Self::Error> {
         let mut graph: Option<Graph> = None;
         let mut order: Option<usize> = None;
