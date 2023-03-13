@@ -1,8 +1,7 @@
 use crate::data_structures::graph::Graph;
 
-//https://drops.dagstuhl.de/opus/volltexte/2015/4921/pdf/21.pdf
-
 pub struct DFSSpaceEfficient<'a> {
+    /// An iterator iterating over nodes of a graph in depth-first-search order as described in https://drops.dagstuhl.de/opus/volltexte/2015/4921/pdf/21.pdf.
     start: usize,
     start_needed: bool,
     graph: &'a Graph,
@@ -63,6 +62,23 @@ impl<'a> Iterator for DFSSpaceEfficient<'a> {
     }
 }
 
+/// Returns a DFS iterator iterating over nodes of the given graph in preprocess order. Takes a reference to a graph and a starting node as arguments.
+///
+/// Time complexity for entire DFS: O((n + m) log n)
+/// # Example
+/// ```
+/// use star::algorithms::dfs::DFS;
+/// use star::data_structures::graph::Graph;
+/// let graph = Graph::new_with_edges(
+///     2,
+///     vec![
+///         [1].to_vec(),
+///         [0].to_vec(),
+///     ],
+/// );
+///
+///  DFS::new_preprocess(&graph, 0);
+/// ```
 impl<'a> DFSSpaceEfficient<'a> {
     pub fn new_preprocess(graph: &'a Graph, start: usize) -> Self {
         Self {
@@ -75,6 +91,24 @@ impl<'a> DFSSpaceEfficient<'a> {
             preprocess: true,
         }
     }
+
+    /// Returns a DFS iterator iterating over nodes of the given graph in postprocess order. Takes a reference to a graph and a starting node as arguments.
+    ///
+    /// Time complexity per `next()` call: O((n + m) log n)
+    /// # Example
+    /// ```
+    /// use star::algorithms::dfs::DFS;
+    /// use star::data_structures::graph::Graph;
+    /// let graph = Graph::new_with_edges(
+    ///     2,
+    ///     vec![
+    ///         [0].to_vec(),
+    ///         [1].to_vec(),
+    ///     ],
+    /// );
+    ///
+    ///  DFS::new_postprocess(&graph, 0);
+    /// ```
 
     pub fn new_postprocess(graph: &'a Graph, start: usize) -> Self {
         Self {
