@@ -189,6 +189,7 @@ impl<'a> DFSSpaceEfficient<'a> {
 
 //-----------------------------------------------------------------------------------------------------------
 
+#[derive(Copy, Clone)]
 enum NodeSize {
     Big(usize),
     Small(usize),
@@ -240,10 +241,10 @@ impl Iterator for DFSLinearTime<'_> {
         if temp.1 < neighbors.len() {
             self.push_to_stack((temp.0, temp.1 + 1));
 
-            if self.colors[neighbors[temp.1 as usize]] == 0 {
-                self.push_to_stack((neighbors[temp.1 as usize], 0));
+            if self.colors[neighbors[temp.1]] == 0 {
+                self.push_to_stack((neighbors[temp.1], 0));
                 if self.preprocess {
-                    return Some(neighbors[temp.1 as usize]);
+                    return Some(neighbors[temp.1]);
                 }
             }
         } else {
@@ -294,7 +295,16 @@ impl<'a> DFSLinearTime<'a> {
             || self.stack.len() == self.stack.capacity() / 2
         {
             if self.graph.neighbors(to_push.0).len() < self.graph.get_edges().len() / 2 {
-                self.t.push((to_push.0 /*Nummer der Gruppe*/,))
+                self.t.push((
+                    to_push.0,
+                    match self.graph.neighbors(to_push.0).len() {
+                        0 => NodeSize::Small(0),
+                        _ => NodeSize::Small(
+                            (to_push.1 * (self.graph.nodes.len() as f32).log2() as usize)
+                                / self.graph.neighbors(to_push.0).len(),
+                        ),
+                    },
+                ))
             } else {
                 self.t.push((to_push.0, NodeSize::Big(to_push.1)))
             }
@@ -338,12 +348,12 @@ impl<'a> DFSLinearTime<'a> {
 
             if temp.1 < neighbors.len() {
                 self.push_to_stack((temp.0, temp.1 + 1));
-                if self.d[neighbors[temp.1 as usize]].is_some()
-                    && self.d[neighbors[temp.1 as usize]].unwrap() == self.t.len()
-                    && self.colors[neighbors[temp.1 as usize]] == 1
+                if self.d[neighbors[temp.1]].is_some()
+                    && self.d[neighbors[temp.1]].unwrap() == self.t.len()
+                    && self.colors[neighbors[temp.1]] == 1
                 {
-                    self.push_to_stack((neighbors[temp.1 as usize], 0));
-                    self.colors[neighbors[temp.1 as usize]] = 0;
+                    self.push_to_stack((neighbors[temp.1], 0));
+                    self.colors[neighbors[temp.1]] = 0;
                 }
             } else {
                 self.colors[temp.0] = 2;
@@ -353,6 +363,11 @@ impl<'a> DFSLinearTime<'a> {
                 self.colors[self.stack[i].0] = 1;
             }
         }
+        let last_stack_index = self.stack.len() - 1;
+        self.stack[last_stack_index].1 = match old_top_of_t.1 {
+            NodeSize::Big(x) => x,
+            NodeSize::Small(x) => x,
+        };
     }
 }
 
@@ -518,10 +533,10 @@ mod tests {
             StandardDFS::new_preprocess(&graph, 0).collect::<Vec<usize>>(),
             vec![0, 3, 2, 1, 4, 5]
         );
-        /*assert_eq!(
+        assert_eq!(
             DFSLinearTime::new_preprocess(&graph, 0).collect::<Vec<usize>>(),
             vec![0, 3, 2, 1, 4, 5]
-        )*/
+        )
     }
 
     #[test]
