@@ -27,6 +27,18 @@ impl Graph {
         }
     }
 
+    pub fn get_edges(&self) -> Vec<(usize, usize)> {
+        let mut ret = Vec::new();
+        for i in 0..self.edges.len() {
+            for j in 0..self.edges[i].len() {
+                if !ret.contains(&(i, self.edges[i][j])) && !ret.contains(&(self.edges[i][j], i)) {
+                    ret.push((i, self.edges[i][j]))
+                }
+            }
+        }
+        ret
+    }
+
     pub fn new_with_edges(n: usize, edges: Vec<Vec<NodeType>>) -> Self {
         if edges.len() != n {
             panic!("Length of edge matrix has to be the same as number of nodes");
