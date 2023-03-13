@@ -1,11 +1,10 @@
 use core::panic;
-use std::{
-    io::{BufRead, ErrorKind, BufReader, Read},
-};
+use std::io::{BufRead, BufReader, ErrorKind, Read};
 
 type NodeType = usize;
 
 #[derive(Debug, PartialEq)]
+/// A basic graph data structure consisting of a vector of nodes and a vector of edges.
 pub struct Graph {
     pub nodes: Vec<u8>, //0: valid entry, 1: invalid entry
     pub edges: Vec<Vec<usize>>,
@@ -18,6 +17,12 @@ impl Default for Graph {
 }
 
 impl Graph {
+    /// Returns empty graph without any nodes or edges.
+    /// # Example
+    /// ```
+    /// use star::data_structures::graph::Graph;
+    /// let graph = Graph::new();
+    /// ```
     pub fn new() -> Self {
         Graph {
             nodes: Vec::new(),
@@ -25,6 +30,12 @@ impl Graph {
         }
     }
 
+    /// Returns graph with n nodes without any edges.
+    /// # Example
+    /// ```
+    /// use star::data_structures::graph::Graph;
+    /// let graph = Graph::new_with_nodes(10);
+    /// ```
     pub fn new_with_nodes(n: usize) -> Self {
         Graph {
             nodes: vec![0_u8; n],
@@ -32,6 +43,18 @@ impl Graph {
         }
     }
 
+    /// Returns graph with n nodes and the given edges.
+    /// # Example
+    /// ```
+    /// use star::data_structures::graph::Graph;
+    /// let graph = Graph::new_with_edges(
+    ///     2,
+    ///     vec![
+    ///         [1].to_vec(),
+    ///         [0].to_vec(),
+    ///     ],
+    /// );
+    /// ```
     pub fn new_with_edges(n: usize, edges: Vec<Vec<NodeType>>) -> Self {
         if edges.len() != n {
             panic!("Length of edge matrix has to be the same as number of nodes");
@@ -54,6 +77,22 @@ impl Graph {
         }
     }
 
+    /// Returns neighboring nodes of the given node.
+    ///
+    /// Time complexity: O(1)
+    /// # Example
+    /// ```
+    /// use star::data_structures::graph::Graph;
+    /// let graph = Graph::new_with_edges(
+    ///     2,
+    ///     vec![
+    ///         [1].to_vec(),
+    ///         [0].to_vec(),
+    ///     ],
+    /// );
+    ///
+    /// assert_eq!(*graph.neighbors(0), vec![1])
+    /// ```
     pub fn neighbors(&self, index: NodeType) -> &Vec<NodeType> {
         if index >= self.nodes.len() {
             panic!("node {} does not exist", index);
@@ -64,6 +103,22 @@ impl Graph {
         &self.edges[index]
     }
 
+    /// Adds a node to the graph, takes a Vec containing edges to that node. Returns the index of the new node.
+    ///
+    /// Time complexity: O(n)
+    /// # Example
+    /// ```
+    /// use star::data_structures::graph::Graph;
+    /// let mut graph = Graph::new_with_edges(
+    ///     2,
+    ///     vec![
+    ///         [1].to_vec(),
+    ///         [0].to_vec(),
+    ///     ],
+    /// );
+    ///
+    /// assert_eq!(graph.add_node(vec![0, 1]), 2)
+    /// ```
     pub fn add_node(&mut self, edges: Vec<NodeType>) -> NodeType {
         self.nodes.push(0);
         self.edges.push(vec![]);
@@ -82,12 +137,46 @@ impl Graph {
         self.nodes.len() - 1
     }
 
+    /// Removes the node with index n from the graph.
+    ///
+    /// Time complexity: O(1)
+    /// # Example
+    /// ```
+    /// use star::data_structures::graph::Graph;
+    /// let mut graph = Graph::new_with_edges(
+    ///     2,
+    ///     vec![
+    ///         [1].to_vec(),
+    ///         [0].to_vec(),
+    ///     ],
+    /// );
+    ///
+    /// graph.remove_node(1);
+    /// ```
     pub fn remove_node(&mut self, index: NodeType) {
         if index < self.nodes.len() {
             self.nodes[index] = 1;
         }
     }
 
+    /// Adds an edge to the graph.
+    ///
+    /// Time complexity: O(n)
+    /// # Example
+    /// ```
+    /// use star::data_structures::graph::Graph;
+    /// let mut graph = Graph::new_with_edges(
+    ///     3,
+    ///     vec![
+    ///         [1, 2].to_vec(),
+    ///         [0].to_vec(),
+    ///         [0].to_vec()
+    ///     ],
+    /// );
+    ///
+    /// graph.add_edge((2, 1));
+    /// assert_eq!(*graph.neighbors(2), vec![0, 1])
+    /// ```
     pub fn add_edge(&mut self, edge: (NodeType, NodeType)) {
         if self.edges[edge.0].contains(&edge.1) {
             panic!("edge {:?} already exists", edge);
@@ -108,6 +197,24 @@ impl Graph {
         self.edges[edge.1].push(edge.0);
     }
 
+    /// Removes an edge from the graph.
+    ///
+    /// Time complexity: O(n)
+    /// # Example
+    /// ```
+    /// use star::data_structures::graph::Graph;
+    /// let mut graph = Graph::new_with_edges(
+    ///     3,
+    ///     vec![
+    ///         [1, 2].to_vec(),
+    ///         [0].to_vec(),
+    ///         [0].to_vec()
+    ///     ],
+    /// );
+    ///
+    /// graph.remove_edge((2, 0));
+    /// assert_eq!(*graph.neighbors(2), vec![])
+    /// ```
     pub fn remove_edge(&mut self, edge: (NodeType, NodeType)) {
         if self.edges[edge.0].contains(&edge.1) {
             self.edges[edge.0].retain(|e| edge.1 != *e)
@@ -117,7 +224,6 @@ impl Graph {
         }
     }
 }
-
 
 impl<U: Read> TryFrom<BufReader<U>> for Graph {
     type Error = std::io::Error;
@@ -207,17 +313,20 @@ mod tests {
         let test = "p edge 6 4\ne 1 4\ne 1 3\ne 2 5\ne 2 3".as_bytes();
 
         let graph = Graph::try_from(BufReader::new(test));
-        assert_eq!(graph.unwrap(), Graph::new_with_edges(
-            6,
-            vec![
-                [3, 2].to_vec(),
-                [4, 2].to_vec(),
-                [0, 1].to_vec(),
-                [0].to_vec(),
-                [1].to_vec(),
-                [].to_vec(),
-            ],
-        ))
+        assert_eq!(
+            graph.unwrap(),
+            Graph::new_with_edges(
+                6,
+                vec![
+                    [3, 2].to_vec(),
+                    [4, 2].to_vec(),
+                    [0, 1].to_vec(),
+                    [0].to_vec(),
+                    [1].to_vec(),
+                    [].to_vec(),
+                ],
+            )
+        )
     }
 
     #[test]
