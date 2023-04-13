@@ -85,7 +85,7 @@ impl<'a> DFSSpaceEfficient<'a> {
             start,
             start_needed: true,
             graph,
-            stack: Vec::with_capacity(2),
+            stack: Vec::with_capacity(5),
             t: Vec::new(),
             colors: vec![0_u8; graph.nodes.len()],
             preprocess: true,
@@ -115,7 +115,7 @@ impl<'a> DFSSpaceEfficient<'a> {
             start,
             start_needed: true,
             graph,
-            stack: Vec::with_capacity(2),
+            stack: Vec::with_capacity(5),
             t: Vec::new(),
             colors: vec![0_u8; graph.nodes.len()],
             preprocess: false,
@@ -189,7 +189,7 @@ impl<'a> DFSSpaceEfficient<'a> {
 
 //-----------------------------------------------------------------------------------------------------------
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 enum NodeSize {
     Big(usize),
     Small(usize),
@@ -212,7 +212,7 @@ impl Iterator for DFSLinearTime<'_> {
     fn next(&mut self) -> Option<Self::Item> {
         if self.start_needed {
             self.start_needed = false;
-            self.push_to_stack((self.start, 0));
+            self.push_to_stack((self.start, 0), false);
 
             if self.preprocess {
                 return Some(self.start);
@@ -222,7 +222,7 @@ impl Iterator for DFSLinearTime<'_> {
         if self.stack.is_empty() {
             for i in 0..self.colors.len() {
                 if self.colors[i] == 0 && self.t.is_empty() {
-                    self.push_to_stack((i, 0));
+                    self.push_to_stack((i, 0), false);
                     if self.preprocess {
                         return Some(i);
                     }
@@ -233,16 +233,16 @@ impl Iterator for DFSLinearTime<'_> {
                 return None;
             }
         }
-
+        //println!("stack: {}, t: {:?}", self.stack.len(), self.t);
         let temp = self.pop_from_stack();
         self.colors[temp.0] = 1; // gray
         let neighbors = self.graph.neighbors(temp.0);
 
         if temp.1 < neighbors.len() {
-            self.push_to_stack((temp.0, temp.1 + 1));
+            self.push_to_stack((temp.0, temp.1 + 1), false);
 
             if self.colors[neighbors[temp.1]] == 0 {
-                self.push_to_stack((neighbors[temp.1], 0));
+                self.push_to_stack((neighbors[temp.1], 0), false);
                 if self.preprocess {
                     return Some(neighbors[temp.1]);
                 }
@@ -263,7 +263,7 @@ impl<'a> DFSLinearTime<'a> {
             start,
             start_needed: true,
             graph,
-            stack: Vec::with_capacity(2),
+            stack: Vec::with_capacity(5),
             t: Vec::new(),
             colors: vec![0_u8; graph.nodes.len()],
             preprocess: true,
@@ -276,7 +276,7 @@ impl<'a> DFSLinearTime<'a> {
             start,
             start_needed: true,
             graph,
-            stack: Vec::with_capacity(2), //s'
+            stack: Vec::with_capacity(5), //s'
             t: Vec::new(),
             colors: vec![0_u8; graph.nodes.len()],
             preprocess: false,
@@ -284,17 +284,21 @@ impl<'a> DFSLinearTime<'a> {
         }
     }
 
-    fn push_to_stack(&mut self, to_push: (usize, usize)) {
+    fn push_to_stack(&mut self, to_push: (usize, usize), while_restoration: bool) {
         if self.stack.len() >= self.stack.capacity() {
             self.stack = Vec::with_capacity(self.stack.capacity());
         }
         self.stack.push((to_push.0, to_push.1));
-        self.d[to_push.0] = Some(self.t.len());
+
+        if !while_restoration {
+            self.d[to_push.0] = Some(self.t.len());
+        }
 
         if self.stack.len() == self.stack.capacity()
             || self.stack.len() == self.stack.capacity() / 2
         {
-            if self.graph.neighbors(to_push.0).len() < self.graph.get_edges().len() / 2 {
+            if self.graph.neighbors(to_push.0).len() < self.graph.edges.iter().flatten().count() / 4
+            {
                 self.t.push((
                     to_push.0,
                     match self.graph.neighbors(to_push.0).len() {
@@ -312,8 +316,10 @@ impl<'a> DFSLinearTime<'a> {
     }
 
     fn pop_from_stack(&mut self) -> (usize, usize) {
-        if self.stack.is_empty() {
+        //stack: 0, t: [(12612, Small(12)), (14657, Small(1)), (14146, Small(8)), (13353, Small(10))]
+        if self.stack.is_empty() && !self.t.is_empty() {
             self.restore_segment();
+            println!("restoration complete, new stack: {:?}", self.stack);
         }
         if self.stack.len() == self.stack.capacity()
             || self.stack.len() == self.stack.capacity() / 2
@@ -324,22 +330,43 @@ impl<'a> DFSLinearTime<'a> {
     }
 
     fn restore_segment(&mut self) {
+        println!("restoring...");
         self.start_needed = true;
         let old_top_of_t = self.t[self.t.len() - 1];
+        let old_len_of_t = self.t.len() - 1;
         self.t = Vec::new();
+        println!(
+            "old_top_of_t: {:?}, color: {}, d entry: {:?}, old_len_of_t: {}",
+            old_top_of_t, self.colors[old_top_of_t.0], self.d[old_top_of_t.0], old_len_of_t
+        );
 
+        /*println!("{:?}", self.graph.neighbors(self.start));
+
+        println!(
+            "{:?}",
+            self.d
+                .iter()
+                .enumerate()
+                .filter(|e| e.1.is_some() && e.1.unwrap() == old_len_of_t)
+                .filter(|e| self.colors[e.1.unwrap()] == 0)
+                .map(|e| e.0)
+                .collect::<Vec<usize>>()
+        );*/
         while self.stack.is_empty() || self.stack[self.stack.len() - 1].0 != old_top_of_t.0 {
             if self.start_needed {
                 self.start_needed = false;
-                self.push_to_stack((self.start, 0));
+                self.push_to_stack((self.start, 0), true);
             }
 
             if self.stack.is_empty() {
                 for i in 0..self.colors.len() {
                     if self.colors[i] == 0 {
-                        self.push_to_stack((i, 0));
+                        self.push_to_stack((i, 0), true);
                         break;
                     }
+                }
+                if self.stack.is_empty() && self.t.is_empty() {
+                    return;
                 }
             }
             let temp = self.pop_from_stack();
@@ -347,27 +374,29 @@ impl<'a> DFSLinearTime<'a> {
             let neighbors = self.graph.neighbors(temp.0);
 
             if temp.1 < neighbors.len() {
-                self.push_to_stack((temp.0, temp.1 + 1));
+                self.push_to_stack((temp.0, temp.1 + 1), true);
                 if self.d[neighbors[temp.1]].is_some()
-                    && self.d[neighbors[temp.1]].unwrap() == self.t.len()
+                    && self.d[neighbors[temp.1]].unwrap() == old_len_of_t
                     && self.colors[neighbors[temp.1]] == 1
                 {
-                    self.push_to_stack((neighbors[temp.1], 0));
+                    self.push_to_stack((neighbors[temp.1], 0), true);
                     self.colors[neighbors[temp.1]] = 0;
                 }
             } else {
                 self.colors[temp.0] = 2;
             }
-
-            for i in 0..self.stack.len() {
-                self.colors[self.stack[i].0] = 1;
-            }
         }
+        for i in 0..self.stack.len() {
+            self.colors[self.stack[i].0] = 1;
+        }
+
         let last_stack_index = self.stack.len() - 1;
         self.stack[last_stack_index].1 = match old_top_of_t.1 {
             NodeSize::Big(x) => x,
             NodeSize::Small(x) => x,
         };
+
+        println!("restoration complete")
     }
 }
 
@@ -460,10 +489,31 @@ impl<'a> StandardDFS<'a> {
 
 #[cfg(test)]
 mod tests {
+    use std::{fs::File, io::BufReader, time::SystemTime};
+
     use crate::{
         algorithms::dfs::{DFSLinearTime, DFSSpaceEfficient, StandardDFS},
         data_structures::graph::Graph,
     };
+
+    #[test]
+    fn throw_away_test() {
+        let file = File::open("mygraph.txt").unwrap();
+        let reader = BufReader::new(file);
+        let graph = Graph::try_from(reader).unwrap();
+        let start = SystemTime::now();
+        //DFSSpaceEfficient::new_preprocess(&graph, 0).count();
+        let duration = SystemTime::now().duration_since(start).unwrap();
+        println!("Space Efficient DFS took {:?}", duration);
+        let start = SystemTime::now();
+        //StandardDFS::new_preprocess(&graph, 0).count();
+        let duration = SystemTime::now().duration_since(start).unwrap();
+        println!("StandardDFS took {:?}", duration);
+        let start = SystemTime::now();
+        DFSLinearTime::new_preprocess(&graph, 0).count();
+        let duration = SystemTime::now().duration_since(start).unwrap();
+        println!("DFSLinearTime took {:?}", duration);
+    }
 
     #[test]
     fn test_first_preprocess() {
