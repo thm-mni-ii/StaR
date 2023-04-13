@@ -78,6 +78,7 @@ impl<'a> StandardBFS<'a> {
 pub struct ChoiceDictBFS<'a> {
     start: usize,
     start_needed: bool,
+    node_with_neighbors_left: Option<usize>,
     graph: &'a Graph,
     colors: ChoiceDict,
     colors_2: ChoiceDict,
@@ -95,37 +96,48 @@ impl<'a> Iterator for ChoiceDictBFS<'a> {
             return Some(self.start);
         }
 
-        let current_node = self.colors_2.choice_1();
-        current_node?;
+        let mut current_node = self.node_with_neighbors_left;
 
-        if current_node.unwrap() == self.start
-            || self
-                .graph
-                .neighbors(current_node.unwrap())
-                .iter()
-                .any(|neighbor| self.colors_2.get(*neighbor) == 0)
+        if self.node_with_neighbors_left.is_none() {
+            current_node = self.colors_2.choice_1();
+            current_node?;
+        }
+
+        let node = current_node.unwrap();
+        let mut ret: Option<usize> = None;
+
+        if node == self.start
+            || self.graph.neighbors(node).iter().any(|neighbor| {
+                self.colors_2.get(*neighbor) == 0 && self.colors.get(*neighbor) == 1
+            })
         {
-            for node in self.graph.neighbors(current_node.unwrap()) {
-                if self.colors.get(*node) == 0 {
-                    self.colors.set(*node);
-                    self.colors_2.set(*node);
-                    return Some(*node);
+            self.node_with_neighbors_left = Some(node);
+            for neighbor in self.graph.neighbors(node) {
+                if self.colors.get(*neighbor) == 0 {
+                    self.colors.set(*neighbor);
+                    self.colors_2.set(*neighbor);
+                    ret = Some(*neighbor);
+                    break;
                 }
             }
         }
 
         if !self
             .graph
-            .neighbors(current_node.unwrap())
+            .neighbors(node)
             .iter()
             .any(|neighbor| self.colors.get(*neighbor) == 0)
         {
-            self.colors.set(current_node.unwrap());
-            self.colors_2.remove(current_node.unwrap());
-            return self.next();
+            self.colors.set(node);
+            self.colors_2.remove(node);
+            self.node_with_neighbors_left = None;
         }
 
-        None
+        if ret.is_some() {
+            return ret;
+        }
+
+        self.next()
     }
 }
 
@@ -152,6 +164,7 @@ impl<'a> ChoiceDictBFS<'a> {
         Self {
             start,
             start_needed: true,
+            node_with_neighbors_left: None,
             graph,
             colors: ChoiceDict::new(graph.nodes.len()),
             colors_2: ChoiceDict::new(graph.nodes.len()),
@@ -186,7 +199,7 @@ mod tests {
         );
         assert_eq!(
             ChoiceDictBFS::new(&graph, 0).collect::<Vec<usize>>(),
-            [0, 3, 2, 1, 4, 5]
+            [0, 3, 2, 1, 4]
         );
     }
 
@@ -210,7 +223,7 @@ mod tests {
         );
         assert_eq!(
             ChoiceDictBFS::new(&graph, 2).collect::<Vec<usize>>(),
-            [2, 0, 1, 3, 4, 5]
+            [2, 0, 1, 3, 4]
         );
     }
 }
