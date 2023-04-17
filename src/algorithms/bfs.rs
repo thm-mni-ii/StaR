@@ -2,7 +2,7 @@ use crate::data_structures::choice_dict::ChoiceDict;
 use crate::data_structures::graph::Graph;
 use std::collections::VecDeque;
 
-/// An iterator iterating over nodes of a graph in a bredth-first-search order
+/// An iterator iterating over nodes of a graph in a breadth-first-search order
 pub struct StandardBFS<'a> {
     start: Option<usize>,
     graph: &'a Graph,
@@ -45,12 +45,12 @@ impl<'a> Iterator for StandardBFS<'a> {
 }
 
 impl<'a> StandardBFS<'a> {
-    /// Returns a new BFS iterator. Takes a reference to a graph and a starting node.
+    /// Returns a new Standard BFS iterator. Takes a reference to a graph and a starting node.
     ///
     /// Time complexity for the entire BFS: O(n)
     /// # Example
     /// ```
-    /// use star::algorithms::bfs::BFS;
+    /// use star::algorithms::bfs::StandardBFS;
     /// use star::data_structures::graph::Graph;
     /// let graph = Graph::new_with_edges(
     ///     2,
@@ -60,7 +60,7 @@ impl<'a> StandardBFS<'a> {
     ///     ],
     /// );
     ///
-    ///  BFS::new(&graph, 0);
+    ///  StandardBFS::new(&graph, 0);
     /// ```
 
     pub fn new(graph: &'a Graph, start: usize) -> Self {
@@ -84,6 +84,7 @@ pub struct ChoiceDictBFS<'a> {
     colors_2: ChoiceDict,
 }
 
+/// An iterator iterating over nodes of a graph in a breadth-first-search order. Takes less space than a standard BFS
 impl<'a> Iterator for ChoiceDictBFS<'a> {
     type Item = usize;
 
@@ -142,12 +143,12 @@ impl<'a> Iterator for ChoiceDictBFS<'a> {
 }
 
 impl<'a> ChoiceDictBFS<'a> {
-    /// Returns a new BFS iterator. Takes a reference to a graph and a starting node.
+    /// Returns a new BFS iterator using Choice Dictionaries. Takes a reference to a graph and a starting node.
     ///
-    /// Time complexity for the entire BFS: O(n)
+    /// Time complexity for the entire BFS: O(n+m), Space complexity: n * log(3) + O(log(n)^2)
     /// # Example
     /// ```
-    /// use star::algorithms::bfs::BFS;
+    /// use star::algorithms::bfs::ChoiceDictBFS;
     /// use star::data_structures::graph::Graph;
     /// let graph = Graph::new_with_edges(
     ///     2,
@@ -157,7 +158,7 @@ impl<'a> ChoiceDictBFS<'a> {
     ///     ],
     /// );
     ///
-    ///  BFS::new(&graph, 0);
+    ///  ChoiceDictBFS::new(&graph, 0);
     /// ```
 
     pub fn new(graph: &'a Graph, start: usize) -> Self {
