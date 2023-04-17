@@ -84,7 +84,7 @@ pub struct ChoiceDictBFS<'a> {
     colors_2: ChoiceDict,
 }
 
-/// An iterator iterating over nodes of a graph in a breadth-first-search order. Takes less space than a standard BFS
+/// An iterator iterating over nodes of a graph in a breadth-first-search order. Takes less space than a standard BFS. Based on: https://arxiv.org/pdf/1812.10950.pdf
 impl<'a> Iterator for ChoiceDictBFS<'a> {
     type Item = usize;
 
