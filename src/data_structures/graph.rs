@@ -16,8 +16,6 @@ impl Default for Graph {
     }
 }
 
-//-------------------------------------LÖSCHEN!!!
-
 impl<U: Read> TryFrom<BufReader<U>> for Graph {
     type Error = std::io::Error;
 
@@ -105,8 +103,6 @@ fn parse_order(elements: &[&str]) -> Result<usize, std::io::Error> {
         )),
     }
 }
-
-//------------------------------------------------------------------LÖSCHEN!!!
 
 impl Graph {
     /// Returns empty graph without any nodes or edges.
