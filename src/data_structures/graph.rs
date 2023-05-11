@@ -3,6 +3,7 @@ use std::io::{BufRead, BufReader, ErrorKind, Read};
 
 type NodeType = usize;
 
+#[derive(Debug, PartialEq)]
 /// A basic graph data structure consisting of a vector of nodes and a vector of edges.
 pub struct Graph {
     pub nodes: Vec<u8>, //0: valid entry, 1: invalid entry
@@ -316,9 +317,136 @@ impl Graph {
     }
 }
 
+impl<U: Read> TryFrom<BufReader<U>> for Graph {
+    type Error = std::io::Error;
+
+    /// Reads a graph from a [.gr](https://pacechallenge.org/2019/vc/vc_format/) file and returns a Result containing either the parsed graph or an error.
+    ///
+    /// # Example
+    /// ```
+    /// use std::io::BufReader;
+    /// use star::data_structures::graph::Graph;
+    ///
+    /// let test = "p edge 6 4\ne 1 4\ne 1 3\ne 2 5\ne 2 3".as_bytes();
+    /// Graph::try_from(BufReader::new(test));
+    /// ```
+
+    fn try_from(reader: BufReader<U>) -> Result<Self, Self::Error> {
+        let mut graph: Option<Graph> = None;
+        let mut order: Option<usize> = None;
+        for line in reader.lines() {
+            let line = line?;
+            let elements: Vec<_> = line.split(' ').collect();
+            match elements[0] {
+                "c" => {
+                    // who cares about comments..
+                }
+                "p" => {
+                    order = Some(parse_order(&elements)?);
+                    graph = Some(Graph::new_with_nodes(order.unwrap()));
+                }
+                _ => match graph.as_mut() {
+                    Some(graph) => {
+                        let u = parse_vertex(elements[1], order.unwrap())?;
+                        let v = parse_vertex(elements[2], order.unwrap())?;
+                        graph.add_edge((u, v));
+                    }
+                    None => {
+                        return Err(std::io::Error::new(
+                            ErrorKind::Other,
+                            "Edges encountered before graph creation",
+                        ));
+                    }
+                },
+            };
+        }
+        match graph {
+            Some(graph) => Ok(graph),
+            None => Err(std::io::Error::new(
+                ErrorKind::Other,
+                "No graph created during parsing",
+            )),
+        }
+    }
+}
+
+fn parse_vertex(v: &str, order: usize) -> Result<usize, std::io::Error> {
+    match v.parse::<usize>() {
+        Ok(u) => {
+            if u == 0 || u > order {
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "Invalid vertex label",
+                ))
+            } else {
+                Ok(u - 1)
+            }
+        }
+        Err(_) => Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "Invalid vertex label",
+        )),
+    }
+}
+
+fn parse_order(elements: &[&str]) -> Result<usize, std::io::Error> {
+    if elements.len() < 3 {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "Invalid line received starting with p",
+        ));
+    }
+    match elements[2].parse::<usize>() {
+        Ok(order) => Ok(order),
+        Err(_) => Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "Invalid order of graph",
+        )),
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use std::io::BufReader;
+
     use crate::data_structures::graph::Graph;
+
+    #[test]
+    fn test_graph_reader_successful() {
+        let test = "p edge 6 4\ne 1 4\ne 1 3\ne 2 5\ne 2 3".as_bytes();
+
+        let graph = Graph::try_from(BufReader::new(test));
+        assert_eq!(
+            graph.unwrap(),
+            Graph::new_with_edges(
+                6,
+                vec![
+                    [3, 2].to_vec(),
+                    [4, 2].to_vec(),
+                    [0, 1].to_vec(),
+                    [0].to_vec(),
+                    [1].to_vec(),
+                    [].to_vec(),
+                ],
+            )
+        )
+    }
+
+    #[test]
+    fn test_graph_reader_node_zero() {
+        let test = "p edge 6 4\ne 1 4\ne 1 3\ne 2 0\ne 2 3".as_bytes();
+
+        let graph = Graph::try_from(BufReader::new(test));
+        assert!(graph.is_err())
+    }
+
+    #[test]
+    fn test_graph_reader_node_too_big() {
+        let test = "p edge 6 4\ne 1 4\ne 1 3\ne 2 7\ne 2 3".as_bytes();
+
+        let graph = Graph::try_from(BufReader::new(test));
+        assert!(graph.is_err())
+    }
 
     #[test]
     #[should_panic]
