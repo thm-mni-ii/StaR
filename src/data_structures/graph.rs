@@ -6,8 +6,9 @@ type NodeType = usize;
 #[derive(Debug, PartialEq)]
 /// A basic graph data structure consisting of a vector of nodes and a vector of edges.
 pub struct Graph {
-    pub nodes: Vec<u8>, //0: valid entry, 1: invalid entry
+    pub nodes: Vec<u8>, //0: valid entry, 1: invalid entry (deleted)
     pub edges: Vec<Vec<usize>>,
+    pub back_edges: Vec<Vec<usize>>,
 }
 
 impl Default for Graph {
@@ -27,6 +28,7 @@ impl Graph {
         Graph {
             nodes: Vec::new(),
             edges: Vec::new(),
+            back_edges: Vec::new(),
         }
     }
 
@@ -40,6 +42,7 @@ impl Graph {
         Graph {
             nodes: vec![0_u8; n],
             edges: vec![Vec::new(); n],
+            back_edges: vec![Vec::new(); n],
         }
     }
 
@@ -71,9 +74,24 @@ impl Graph {
             }
         }
 
+        let mut back_edges: Vec<Vec<usize>> = vec![Vec::new(); n];
+        for i in 0..edges.len() {
+            back_edges[i] = vec![0; edges[i].len()];
+            for j in 0..edges[i].len() {
+                let node = edges[i][j];
+                back_edges[i][j] = edges[node]
+                    .iter()
+                    .enumerate()
+                    .find(|n| *n.1 == i)
+                    .map(|n| n.0)
+                    .unwrap()
+            }
+        }
+
         Graph {
             nodes: vec![0_u8; n],
             edges,
+            back_edges,
         }
     }
 
@@ -122,6 +140,7 @@ impl Graph {
     pub fn add_node(&mut self, edges: Vec<NodeType>) -> NodeType {
         self.nodes.push(0);
         self.edges.push(vec![]);
+        self.back_edges.push(vec![]);
 
         edges.iter().for_each(|e| {
             if *e >= self.nodes.len() {
@@ -132,6 +151,8 @@ impl Graph {
             }
             self.edges[self.nodes.len() - 1].push(*e);
             self.edges[*e].push(self.nodes.len() - 1);
+            self.back_edges[self.nodes.len() - 1].push(self.edges[*e].len() - 1);
+            self.back_edges[*e].push(self.edges[self.nodes.len() - 1].len() - 1);
         });
 
         self.nodes.len() - 1
@@ -195,6 +216,8 @@ impl Graph {
         }
         self.edges[edge.0].push(edge.1);
         self.edges[edge.1].push(edge.0);
+        self.back_edges[edge.1].push(self.edges[edge.0].len() - 1);
+        self.back_edges[edge.0].push(self.edges[edge.1].len() - 1);
     }
 
     /// Removes an edge from the graph.
@@ -216,12 +239,28 @@ impl Graph {
     /// assert_eq!(*graph.neighbors(2), vec![])
     /// ```
     pub fn remove_edge(&mut self, edge: (NodeType, NodeType)) {
-        if self.edges[edge.0].contains(&edge.1) {
-            self.edges[edge.0].retain(|e| edge.1 != *e)
+        if !self.edges[edge.0].contains(&edge.1) || !self.edges[edge.1].contains(&edge.0) {
+            panic!("Fehler");
         }
-        if self.edges[edge.1].contains(&edge.0) {
-            self.edges[edge.1].retain(|e| edge.0 != *e)
-        }
+
+        self.back_edges[edge.1].remove(
+            self.edges[edge.1]
+                .iter()
+                .enumerate()
+                .find(|e| *e.1 == edge.0)
+                .map(|e| e.0)
+                .unwrap(),
+        );
+        self.back_edges[edge.0].remove(
+            self.edges[edge.0]
+                .iter()
+                .enumerate()
+                .find(|e| *e.1 == edge.1)
+                .map(|e| e.0)
+                .unwrap(),
+        );
+        self.edges[edge.0].retain(|e| edge.1 != *e);
+        self.edges[edge.1].retain(|e| edge.0 != *e)
     }
 }
 
