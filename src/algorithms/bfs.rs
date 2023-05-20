@@ -20,15 +20,7 @@ impl<'a> Iterator for StandardBFS<'a> {
         }
 
         if self.queue.is_empty() {
-            for i in 0..self.visited.len() {
-                if !self.visited[i] {
-                    self.queue.push_back(i);
-                    break;
-                }
-            }
-            if self.queue.is_empty() {
-                return None;
-            }
+            return None;
         }
         let temp = self.queue.pop_front().unwrap();
         self.visited[temp] = true;
@@ -196,7 +188,7 @@ mod tests {
 
         assert_eq!(
             StandardBFS::new(&graph, 0).collect::<Vec<usize>>(),
-            [0, 3, 2, 1, 4, 5]
+            [0, 3, 2, 1, 4]
         );
         assert_eq!(
             ChoiceDictBFS::new(&graph, 0).collect::<Vec<usize>>(),
@@ -220,7 +212,7 @@ mod tests {
 
         assert_eq!(
             StandardBFS::new(&graph, 2).collect::<Vec<usize>>(),
-            [2, 0, 1, 3, 4, 5]
+            [2, 0, 1, 3, 4]
         );
         assert_eq!(
             ChoiceDictBFS::new(&graph, 2).collect::<Vec<usize>>(),
