@@ -5,6 +5,7 @@ type BlockIdx = usize;
 type WordIdx = usize;
 type Color = usize;
 
+#[derive(PartialEq)]
 /// A 2-color choice dictionary based on the ideas presented in <https://drops.dagstuhl.de/opus/volltexte/2018/10014/pdf/LIPIcs-ISAAC-2018-66.pdf>
 /// (DOI: 10.4230/LIPIcs.ISAAC.2018.66).
 ///
