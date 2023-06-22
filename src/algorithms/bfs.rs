@@ -1,15 +1,16 @@
+use crate::data_structures::choice_dict::ChoiceDict;
 use crate::data_structures::graph::Graph;
 use std::collections::VecDeque;
 
-/// An iterator iterating over nodes of a graph in a bredth-first-search order
-pub struct BFS<'a> {
+/// An iterator iterating over nodes of a graph in a breadth-first-search order
+pub struct StandardBFS<'a> {
     start: Option<usize>,
     graph: &'a Graph,
     visited: Vec<bool>,
     queue: VecDeque<usize>,
 }
 
-impl<'a> Iterator for BFS<'a> {
+impl<'a> Iterator for StandardBFS<'a> {
     type Item = usize;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -19,15 +20,7 @@ impl<'a> Iterator for BFS<'a> {
         }
 
         if self.queue.is_empty() {
-            for i in 0..self.visited.len() {
-                if !self.visited[i] {
-                    self.queue.push_back(i);
-                    break;
-                }
-            }
-            if self.queue.is_empty() {
-                return None;
-            }
+            return None;
         }
         let temp = self.queue.pop_front().unwrap();
         self.visited[temp] = true;
@@ -43,13 +36,13 @@ impl<'a> Iterator for BFS<'a> {
     }
 }
 
-impl<'a> BFS<'a> {
-    /// Returns a new BFS iterator. Takes a reference to a graph and a starting node.
+impl<'a> StandardBFS<'a> {
+    /// Returns a new Standard BFS iterator. Takes a reference to a graph and a starting node.
     ///
     /// Time complexity for the entire BFS: O(n)
     /// # Example
     /// ```
-    /// use star::algorithms::bfs::BFS;
+    /// use star::algorithms::bfs::StandardBFS;
     /// use star::data_structures::graph::Graph;
     /// let graph = Graph::new_with_edges(
     ///     2,
@@ -59,7 +52,7 @@ impl<'a> BFS<'a> {
     ///     ],
     /// );
     ///
-    ///  BFS::new(&graph, 0);
+    ///  StandardBFS::new(&graph, 0);
     /// ```
 
     pub fn new(graph: &'a Graph, start: usize) -> Self {
@@ -72,9 +65,112 @@ impl<'a> BFS<'a> {
     }
 }
 
+//----------------------------------------------------------------
+
+pub struct ChoiceDictBFS<'a> {
+    start: usize,
+    start_needed: bool,
+    node_with_neighbors_left: Option<usize>,
+    graph: &'a Graph,
+    colors: ChoiceDict,
+    colors_2: ChoiceDict,
+}
+
+/// An iterator iterating over nodes of a graph in a breadth-first-search order. Takes less space than a standard BFS. Based on: https://arxiv.org/pdf/1812.10950.pdf
+impl<'a> Iterator for ChoiceDictBFS<'a> {
+    type Item = usize;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.start_needed {
+            self.colors.set(self.start);
+            self.colors_2.set(self.start);
+            self.start_needed = false;
+
+            return Some(self.start);
+        }
+
+        let mut current_node = self.node_with_neighbors_left;
+
+        if self.node_with_neighbors_left.is_none() {
+            current_node = self.colors_2.choice_1();
+            current_node?;
+        }
+
+        let node = current_node.unwrap();
+        let mut ret: Option<usize> = None;
+
+        if node == self.start
+            || self.graph.neighbors(node).iter().any(|neighbor| {
+                self.colors_2.get(*neighbor) == 0 && self.colors.get(*neighbor) == 1
+            })
+        {
+            self.node_with_neighbors_left = Some(node);
+            for neighbor in self.graph.neighbors(node) {
+                if self.colors.get(*neighbor) == 0 {
+                    self.colors.set(*neighbor);
+                    self.colors_2.set(*neighbor);
+                    ret = Some(*neighbor);
+                    break;
+                }
+            }
+        }
+
+        if !self
+            .graph
+            .neighbors(node)
+            .iter()
+            .any(|neighbor| self.colors.get(*neighbor) == 0)
+        {
+            self.colors.set(node);
+            self.colors_2.remove(node);
+            self.node_with_neighbors_left = None;
+        }
+
+        if ret.is_some() {
+            return ret;
+        }
+
+        self.next()
+    }
+}
+
+impl<'a> ChoiceDictBFS<'a> {
+    /// Returns a new BFS iterator using Choice Dictionaries. Takes a reference to a graph and a starting node.
+    ///
+    /// Time complexity for the entire BFS: O(n+m), Space complexity: n * log(3) + O(log(n)^2)
+    /// # Example
+    /// ```
+    /// use star::algorithms::bfs::ChoiceDictBFS;
+    /// use star::data_structures::graph::Graph;
+    /// let graph = Graph::new_with_edges(
+    ///     2,
+    ///     vec![
+    ///         [0].to_vec(),
+    ///         [1].to_vec(),
+    ///     ],
+    /// );
+    ///
+    ///  ChoiceDictBFS::new(&graph, 0);
+    /// ```
+
+    pub fn new(graph: &'a Graph, start: usize) -> Self {
+        Self {
+            start,
+            start_needed: true,
+            node_with_neighbors_left: None,
+            graph,
+            colors: ChoiceDict::new(graph.nodes.len()),
+            colors_2: ChoiceDict::new(graph.nodes.len()),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::{algorithms::bfs::BFS, data_structures::graph::Graph};
+    use crate::{
+        algorithms::bfs::{ChoiceDictBFS, StandardBFS},
+        data_structures::graph::Graph,
+    };
 
     #[test]
     fn test_whole() {
@@ -91,8 +187,12 @@ mod tests {
         );
 
         assert_eq!(
-            BFS::new(&graph, 0).collect::<Vec<usize>>(),
-            [0, 3, 2, 1, 4, 5]
+            StandardBFS::new(&graph, 0).collect::<Vec<usize>>(),
+            [0, 3, 2, 1, 4]
+        );
+        assert_eq!(
+            ChoiceDictBFS::new(&graph, 0).collect::<Vec<usize>>(),
+            [0, 3, 2, 1, 4]
         );
     }
 
@@ -111,8 +211,12 @@ mod tests {
         );
 
         assert_eq!(
-            BFS::new(&graph, 2).collect::<Vec<usize>>(),
-            [2, 0, 1, 3, 4, 5]
+            StandardBFS::new(&graph, 2).collect::<Vec<usize>>(),
+            [2, 0, 1, 3, 4]
+        );
+        assert_eq!(
+            ChoiceDictBFS::new(&graph, 2).collect::<Vec<usize>>(),
+            [2, 0, 1, 3, 4]
         );
     }
 }
