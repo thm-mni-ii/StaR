@@ -24,19 +24,8 @@ impl<'a> Iterator for DFS<'a> {
             }
         }
 
-        if self.stack.is_empty() {
-            for i in 0..self.colors.len() {
-                if self.colors[i] == 0 && self.t.is_empty() {
-                    self.push_to_stack((i, 0));
-                    if self.preprocess {
-                        return Some(i);
-                    }
-                    break;
-                }
-            }
-            if self.stack.is_empty() && self.t.is_empty() {
-                return None;
-            }
+        if self.stack.is_empty() && self.t.is_empty() {
+            return None;
         }
 
         let temp = self.pop_from_stack();
@@ -242,7 +231,7 @@ mod tests {
 
         assert_eq!(
             DFS::new_preprocess(&graph, 0).collect::<Vec<usize>>(),
-            vec![0, 3, 2, 1, 4, 5]
+            vec![0, 3, 2, 1, 4]
         )
     }
 
@@ -262,7 +251,7 @@ mod tests {
 
         assert_eq!(
             DFS::new_postprocess(&graph, 0).collect::<Vec<usize>>(),
-            vec![3, 4, 1, 2, 0, 5]
+            vec![3, 4, 1, 2, 0]
         )
     }
 
@@ -282,7 +271,7 @@ mod tests {
 
         assert_eq!(
             DFS::new_preprocess(&graph, 2).collect::<Vec<usize>>(),
-            vec![2, 0, 3, 1, 4, 5]
+            vec![2, 0, 3, 1, 4]
         )
     }
 
@@ -302,7 +291,7 @@ mod tests {
 
         assert_eq!(
             DFS::new_postprocess(&graph, 2).collect::<Vec<usize>>(),
-            vec![3, 0, 4, 1, 2, 5]
+            vec![3, 0, 4, 1, 2]
         )
     }
 }
