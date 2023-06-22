@@ -359,6 +359,35 @@ mod tests {
     use crate::data_structures::graph::Graph;
 
     #[test]
+    fn test_back_edges() {
+        let graph =
+            Graph::new_with_edges(3, vec![[1, 2].to_vec(), [0, 2].to_vec(), [0, 1].to_vec()]);
+        assert_eq!(graph.back_edges[1], vec![0, 1]);
+        assert_eq!(graph.back_edges[2], vec![1, 1]);
+    }
+
+    #[test]
+    fn test_back_edges_2() {
+        let graph = Graph::new_with_edges(
+            6,
+            vec![
+                [3, 2].to_vec(),
+                [4, 2].to_vec(),
+                [0, 1].to_vec(),
+                [0].to_vec(),
+                [1].to_vec(),
+                [].to_vec(),
+            ],
+        );
+        assert_eq!(graph.back_edges[0], vec![0, 0]);
+        assert_eq!(graph.back_edges[1], vec![0, 1]);
+        assert_eq!(graph.back_edges[2], vec![1, 1]);
+        assert_eq!(graph.back_edges[3], vec![0]);
+        assert_eq!(graph.back_edges[4], vec![0]);
+        assert_eq!(graph.back_edges[5], vec![]);
+    }
+
+    #[test]
     fn test_graph_reader_successful() {
         let test = "p edge 6 4\ne 1 4\ne 1 3\ne 2 5\ne 2 3".as_bytes();
 
