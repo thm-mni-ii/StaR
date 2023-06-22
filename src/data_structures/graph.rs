@@ -368,7 +368,7 @@ mod tests {
 
     #[test]
     fn test_back_edges_2() {
-        let graph = Graph::new_with_edges(
+        let mut graph = Graph::new_with_edges(
             6,
             vec![
                 [3, 2].to_vec(),
@@ -379,12 +379,18 @@ mod tests {
                 [].to_vec(),
             ],
         );
-        assert_eq!(graph.back_edges[0], vec![0, 0]);
+        graph.remove_edge((0, 3));
+        assert_eq!(graph.back_edges[0], vec![0]);
         assert_eq!(graph.back_edges[1], vec![0, 1]);
         assert_eq!(graph.back_edges[2], vec![1, 1]);
-        assert_eq!(graph.back_edges[3], vec![0]);
+        assert_eq!(graph.back_edges[3], vec![]);
         assert_eq!(graph.back_edges[4], vec![0]);
         assert_eq!(graph.back_edges[5], vec![]);
+
+        graph.add_edge((2, 4));
+
+        assert_eq!(graph.back_edges[2], vec![1, 1, 1]);
+        assert_eq!(graph.back_edges[4], vec![0, 2]);
     }
 
     #[test]
