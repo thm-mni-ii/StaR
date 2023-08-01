@@ -49,6 +49,7 @@ mod tests {
     use crate::data_structures::{choice_dict::ChoiceDict, subgraph::Subgraph};
 
     #[test]
+    #[cfg(not(miri))]
     fn test_dot_graph() {
         use super::dot_graph;
         use crate::data_structures::graph::Graph;
