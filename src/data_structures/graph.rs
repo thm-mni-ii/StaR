@@ -3,7 +3,7 @@ use std::io::{BufRead, BufReader, ErrorKind, Read};
 
 type NodeType = usize;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 /// A basic graph data structure consisting of a vector of nodes and a vector of edges.
 pub struct Graph {
     pub nodes: Vec<u8>, //0: valid entry, 1: invalid entry (deleted)
@@ -176,6 +176,10 @@ impl Graph {
     /// ```
     pub fn remove_node(&mut self, index: NodeType) {
         if index < self.nodes.len() {
+            let neighbors = self.neighbors(index).clone();
+            for n in neighbors {
+                self.remove_edge((n, index))
+            }
             self.nodes[index] = 1;
         }
     }

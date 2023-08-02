@@ -29,7 +29,7 @@ use crate::data_structures::{graph::Graph, subgraph::Subgraph};
 /// dot_graph(&graph, vec![sub, sub1]);
 /// ```
 
-pub fn dot_graph(graph: &Graph, subgraphs: Vec<Subgraph>) -> String {
+pub fn dot_graph(graph: &Graph, subgraphs: &[Subgraph]) -> String {
     let mut graph_string = String::from("graph {");
     let mut already_written: Vec<(usize, usize)> = Vec::new();
     let mut nodes_visited: Vec<bool> = vec![false; graph.nodes.len()];
@@ -95,6 +95,6 @@ mod tests {
 
         let sub = Subgraph::new(&graph, subset);
         let sub1 = Subgraph::new(&graph, subset1);
-        assert_eq!(dot_graph(&graph, vec![sub, sub1]), "graph {0 -- 3;0 -- 2;1 -- 4;1 -- 2;5;subgraph cluster_0 {style=invis;0 [fillcolor=red, style=filled];3 [fillcolor=red, style=filled];4 [fillcolor=red, style=filled];}subgraph cluster_1 {style=invis;1 [fillcolor=green, style=filled];2 [fillcolor=green, style=filled];}}");
+        assert_eq!(dot_graph(&graph, &[sub, sub1]), "graph {0 -- 3;0 -- 2;1 -- 4;1 -- 2;5;subgraph cluster_0 {style=invis;0 [fillcolor=red, style=filled];3 [fillcolor=red, style=filled];4 [fillcolor=red, style=filled];}subgraph cluster_1 {style=invis;1 [fillcolor=green, style=filled];2 [fillcolor=green, style=filled];}}");
     }
 }
