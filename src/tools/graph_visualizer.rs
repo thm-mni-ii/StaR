@@ -26,7 +26,7 @@ use crate::data_structures::{graph::Graph, subgraph::Subgraph};
 /// subset1.set(2);
 /// let sub = Subgraph::new(&graph, subset);
 /// let sub1 = Subgraph::new(&graph, subset1);
-/// dot_graph(&graph, vec![sub, sub1]);
+/// dot_graph(&graph, &[sub, sub1]);
 /// ```
 
 pub fn dot_graph(graph: &Graph, subgraphs: &[Subgraph]) -> String {
