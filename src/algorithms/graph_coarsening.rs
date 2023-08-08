@@ -3,16 +3,14 @@ use crate::data_structures::choice_dict::ChoiceDict;
 use crate::data_structures::graph::Graph;
 use crate::data_structures::subgraph::Subgraph;
 
-pub fn coarsen_graph<'a>(graph: &'a Graph, visited: &'a mut ChoiceDict) -> Vec<Subgraph<'a>> {
+pub fn cloud_partition<'a>(graph: &'a Graph, visited: &'a mut ChoiceDict) -> Vec<Subgraph<'a>> {
     let mut subgraphs = Vec::new();
     let mut working_graph = graph.clone();
 
-    while visited.choice_0().is_some() {
-        let node = visited.choice_0();
-        println!("node: {:?}", node);
+    while let Some(node) = visited.choice_0() {
         let mut cloud = Subgraph::new(graph, ChoiceDict::new(graph.nodes.len()));
 
-        ChoiceDictBFS::new(&working_graph, node.unwrap())
+        ChoiceDictBFS::new(&working_graph, node)
             .enumerate()
             .take_while(|(i, _)| (*i as f32) < (graph.nodes.len() as f32).log2())
             .map(|(_, n)| n)
@@ -33,6 +31,7 @@ pub fn coarsen_graph<'a>(graph: &'a Graph, visited: &'a mut ChoiceDict) -> Vec<S
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
     use crate::tools::graph_visualizer::*;
 
@@ -61,15 +60,27 @@ mod tests {
                 [11, 16].to_vec(),
             ],
         );
+        //let file = std::fs::File::open("tests/planar_embedding1000000.pg").unwrap();
+        //let buf_reader = std::io::BufReader::new(file);
+        //let graph = Graph::try_from(buf_reader).unwrap();
+        println!("Graph loaded");
         let mut binding = ChoiceDict::new(graph.nodes.len());
-        let subs = coarsen_graph(&graph, &mut binding);
+        let subs = cloud_partition(&graph, &mut binding);
+        println!("graph coarsened, {} subgraphs", subs.len());
         let graph_str = dot_graph(&graph, &subs);
-        println!(
-            "{:?}",
-            subs.iter()
-                .map(|s| s.subset.iter_1().collect())
-                .collect::<Vec<Vec<usize>>>()
-        );
+        println!("dot string created");
         std::fs::write("test.dot", graph_str).unwrap();
+    }
+
+    #[test]
+    pub fn test_choice_dict() {
+        let mut choice_dict = ChoiceDict::new(1000);
+        for i in 0..96 {
+            choice_dict.set(i);
+        }
+
+        assert_eq!(choice_dict.get(999), 0);
+        choice_dict.set(999);
+        assert_eq!(choice_dict.get(999), 1);
     }
 }

@@ -158,9 +158,9 @@ impl Graph {
         self.nodes.len() - 1
     }
 
-    /// Removes the node with index n from the graph.
+    /// Removes the node with index n from the graph. Also removes all edges to that node.
     ///
-    /// Time complexity: O(1)
+    /// Time complexity: O(n)
     /// # Example
     /// ```
     /// use star::data_structures::graph::Graph;
@@ -204,7 +204,7 @@ impl Graph {
     /// ```
     pub fn add_edge(&mut self, edge: (NodeType, NodeType)) {
         if self.edges[edge.0].contains(&edge.1) {
-            panic!("edge {:?} already exists", edge);
+            return;
         }
         if edge.0 >= self.nodes.len() {
             panic!("node {} does not exist", edge.0);
@@ -298,8 +298,8 @@ impl<U: Read> TryFrom<BufReader<U>> for Graph {
                 }
                 _ => match graph.as_mut() {
                     Some(graph) => {
-                        let u = parse_vertex(elements[1], order.unwrap())?;
-                        let v = parse_vertex(elements[2], order.unwrap())?;
+                        let u = parse_vertex(elements[0], order.unwrap())?;
+                        let v = parse_vertex(elements[1], order.unwrap())?;
                         graph.add_edge((u, v));
                     }
                     None => {
@@ -324,13 +324,13 @@ impl<U: Read> TryFrom<BufReader<U>> for Graph {
 fn parse_vertex(v: &str, order: usize) -> Result<usize, std::io::Error> {
     match v.parse::<usize>() {
         Ok(u) => {
-            if u == 0 || u > order {
+            if u >= order {
                 Err(std::io::Error::new(
                     std::io::ErrorKind::InvalidInput,
                     "Invalid vertex label",
                 ))
             } else {
-                Ok(u - 1)
+                Ok(u)
             }
         }
         Err(_) => Err(std::io::Error::new(
@@ -347,7 +347,7 @@ fn parse_order(elements: &[&str]) -> Result<usize, std::io::Error> {
             "Invalid line received starting with p",
         ));
     }
-    match elements[2].parse::<usize>() {
+    match elements[1].parse::<usize>() {
         Ok(order) => Ok(order),
         Err(_) => Err(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
@@ -655,23 +655,6 @@ mod tests {
             ],
         );
         graph.add_edge((3, 7));
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_edge_add_existing_edge() {
-        let mut graph = Graph::new_with_edges(
-            6,
-            vec![
-                [3, 2].to_vec(),
-                [4, 2].to_vec(),
-                [0, 1].to_vec(),
-                [0].to_vec(),
-                [1].to_vec(),
-                [].to_vec(),
-            ],
-        );
-        graph.add_edge((0, 3));
     }
 
     #[test]

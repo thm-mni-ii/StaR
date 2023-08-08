@@ -136,3 +136,4 @@ Cargo.lock
 mygraph.txt
 doc
 *.dot
+tests
