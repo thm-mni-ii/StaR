@@ -1,6 +1,6 @@
 use super::{choice_dict::ChoiceDict, graph::Graph};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 /// Data structure representing Subgraphs
 pub struct Subgraph<'a> {
     pub graph: &'a Graph,
