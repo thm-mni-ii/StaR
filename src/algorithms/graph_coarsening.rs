@@ -1,4 +1,3 @@
-use core::num;
 use std::collections::HashSet;
 
 use crate::algorithms::bfs::ChoiceDictBFS;
@@ -42,6 +41,10 @@ pub fn build_cloud_graph<'a>(subgraphs: &'a Vec<Subgraph<'a>>, graph: &'a Graph)
     let mut cloud_types = Vec::new();
     let mut clouds = Vec::new();
 
+    for i in 0..subgraphs.len() {
+        neighbors.push(set_cloud_neighbors(&subgraphs[i], subgraphs, graph));
+    }
+
     subgraphs.iter().enumerate().for_each(|(i, s)| {
         cloud_types.push(cloud_type(s, graph, &neighbors[i]));
     });
@@ -49,10 +52,6 @@ pub fn build_cloud_graph<'a>(subgraphs: &'a Vec<Subgraph<'a>>, graph: &'a Graph)
     subgraphs.iter().enumerate().for_each(|(i, s)| {
         clouds.push(Cloud::new(s.clone(), cloud_types[i]));
     });
-
-    for i in 0..subgraphs.len() {
-        neighbors.push(set_cloud_neighbors(&subgraphs[i], subgraphs, graph));
-    }
 
     CloudGraph::new(clouds, neighbors)
 }
@@ -149,17 +148,36 @@ pub fn construct_f(clouds: &CloudGraph) -> (Graph, Vec<usize>) {
         }
     }
 
-    add_edges(&mut f, f_indices, clouds);
+    add_edges(&mut f, &f_indices, clouds);
 
-    todo!("bridge clouds hinzufügen");
+    big_clouds.iter().enumerate().for_each(|(i, b)| {
+        let adjacent_bridges = clouds.edges[i]
+            .iter()
+            .filter(|n| clouds.clouds[**n].c_type == CloudType::Bridge)
+            .copied()
+            .collect::<Vec<usize>>();
 
-    big_clouds.iter().enumerate().for_each(|bc| {
+        for bridge in adjacent_bridges {
+            let mut bridge_neighbor = clouds.edges[bridge].iter().find(|br| **br != b.0).unwrap();
+
+            while clouds.clouds[*bridge_neighbor].c_type != CloudType::Big {
+                bridge_neighbor = clouds.edges[*bridge_neighbor]
+                    .iter()
+                    .find(|br| **br != *bridge_neighbor)
+                    .unwrap()
+            }
+
+            f.add_node([b.0, *bridge_neighbor].to_vec());
+        }
+    });
+
+    big_clouds.iter().for_each(|bc| {
         let number_leafs = clouds.edges[bc.0]
             .iter()
             .filter(|n| clouds.clouds[**n].c_type == CloudType::Leaf)
             .count();
         if number_leafs > 0 {
-            f.add_node([bc.1 .0].to_vec());
+            f.add_node([f_indices[bc.0].unwrap()].to_vec());
             weights.push(number_leafs);
         }
     });
@@ -167,7 +185,7 @@ pub fn construct_f(clouds: &CloudGraph) -> (Graph, Vec<usize>) {
     (f, weights)
 }
 
-fn add_edges(f: &mut Graph, f_indices: Vec<Option<usize>>, graph: &CloudGraph) {
+fn add_edges(f: &mut Graph, f_indices: &[Option<usize>], graph: &CloudGraph) {
     graph
         .clouds
         .iter()
@@ -176,6 +194,7 @@ fn add_edges(f: &mut Graph, f_indices: Vec<Option<usize>>, graph: &CloudGraph) {
         .for_each(|(i, _)| {
             graph.edges[i]
                 .iter()
+                .filter(|n| graph.clouds[**n].c_type == CloudType::Big)
                 .for_each(|j| f.add_edge((f_indices[i].unwrap(), *j)))
         });
 }
@@ -218,7 +237,7 @@ mod tests {
         let mut binding = ChoiceDict::new(graph.nodes.len());
         let subs = cloud_partition(&graph, &mut binding);
         println!("graph coarsened, {} subgraphs", subs.len());
-        let graph_str = dot_graph(&graph, &Vec::new());
+        let graph_str = dot_graph(&graph, &subs);
         println!("dot string created");
         std::fs::write("cloud_part.dot", graph_str).unwrap();
         let f = construct_f(&build_cloud_graph(&subs, &graph));

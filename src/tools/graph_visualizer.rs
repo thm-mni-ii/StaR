@@ -111,16 +111,12 @@ pub fn dot_graph(graph: &Graph, subgraphs: &[Subgraph]) -> String {
         })
     });
 
-    println!("edges processed");
-
     nodes_visited
         .iter()
         .enumerate()
         .filter(|v| !*v.1)
         .map(|(i, _)| i)
         .for_each(|v| graph_string.push_str(&format!("{};", v)));
-
-    println!("nodes processed");
 
     subgraphs.iter().enumerate().for_each(|(i, sg)| {
         let color = available_colors[i % available_colors.len()];
