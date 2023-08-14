@@ -127,8 +127,6 @@ pub fn dot_graph(graph: &Graph, subgraphs: &[Subgraph]) -> String {
         graph_string.push('}');
     });
 
-    println!("subgraphs processed");
-
     graph_string.push('}');
 
     graph_string

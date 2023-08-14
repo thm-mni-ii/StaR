@@ -114,7 +114,7 @@ pub fn cloud_partition<'a>(graph: &'a Graph, visited: &'a mut ChoiceDict) -> Vec
 
         ChoiceDictBFS::new(&working_graph, node)
             .enumerate()
-            .take_while(|(i, _)| (*i as f32) < (graph.nodes.len() as f32).log2())
+            .take_while(|(i, _)| ((*i + 1) as f32) <= (graph.nodes.len() as f32).log2())
             .map(|(_, n)| n)
             .for_each(|n| {
                 visited.set(n);
@@ -150,6 +150,8 @@ pub fn construct_f(clouds: &CloudGraph) -> (Graph, Vec<usize>) {
 
     add_edges(&mut f, &f_indices, clouds);
 
+    let mut bridge_clouds = Vec::new();
+
     big_clouds.iter().enumerate().for_each(|(i, b)| {
         let adjacent_bridges = clouds.edges[i]
             .iter()
@@ -166,8 +168,12 @@ pub fn construct_f(clouds: &CloudGraph) -> (Graph, Vec<usize>) {
                     .find(|br| **br != *bridge_neighbor)
                     .unwrap()
             }
-
-            f.add_node([b.0, *bridge_neighbor].to_vec());
+            if !bridge_clouds.contains(&(b.0, *bridge_neighbor))
+                && !bridge_clouds.contains(&(*bridge_neighbor, b.0))
+            {
+                f.add_node([b.0, *bridge_neighbor].to_vec());
+                bridge_clouds.push((b.0, *bridge_neighbor));
+            }
         }
     });
 
@@ -207,27 +213,19 @@ mod tests {
 
     #[test]
     pub fn test() {
-        let graph = crate::data_structures::graph::Graph::new_with_edges(
-            18,
+        let graph = Graph::new_with_edges(
+            10,
             vec![
+                [3, 2].to_vec(),
+                [4, 5].to_vec(),
+                [0, 9].to_vec(),
+                [0].to_vec(),
+                [1].to_vec(),
                 [1, 6].to_vec(),
-                [0, 2, 7].to_vec(),
-                [1, 3, 8].to_vec(),
-                [2, 4, 9].to_vec(),
-                [3, 5, 10].to_vec(),
-                [4, 11].to_vec(),
-                [0, 7, 12].to_vec(),
-                [1, 6, 8, 13].to_vec(),
-                [2, 7, 9, 14].to_vec(),
-                [3, 8, 10, 15].to_vec(),
-                [4, 9, 11, 16].to_vec(),
-                [5, 10, 17].to_vec(),
-                [6, 13].to_vec(),
-                [7, 12, 14].to_vec(),
-                [8, 13, 15].to_vec(),
-                [9, 14, 16].to_vec(),
-                [10, 15, 17].to_vec(),
-                [11, 16].to_vec(),
+                [5, 7].to_vec(),
+                [6, 8].to_vec(),
+                [7, 9].to_vec(),
+                [2, 8].to_vec(),
             ],
         );
         /*let file = std::fs::File::open("tests/planar_embedding1000000.pg").unwrap();
