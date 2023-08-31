@@ -244,7 +244,7 @@ impl Graph {
     /// ```
     pub fn remove_edge(&mut self, edge: (NodeType, NodeType)) {
         if !self.edges[edge.0].contains(&edge.1) || !self.edges[edge.1].contains(&edge.0) {
-            panic!("Edge ({}, {}) does not exist", edge.0, edge.1);
+            return;
         }
 
         self.back_edges[edge.1].remove(
