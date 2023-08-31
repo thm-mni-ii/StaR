@@ -14,6 +14,7 @@ pub enum CloudType {
     Leaf,
 }
 
+#[derive(Debug)]
 pub struct CloudPartition<'a> {
     start: ChoiceDict,
     big: ChoiceDict,
@@ -160,53 +161,105 @@ impl<'b> CloudPartition<'b> {
 }
 
 #[derive(Debug)]
-pub struct F {
+pub struct F<'a> {
     f: Graph,
     node_to_cloud: Vec<usize>,
     cloud_to_node: Vec<usize>,
     weights: Vec<usize>,
+    cloud_part: &'a CloudPartition<'a>,
 }
 
-impl<'a> F {
-    fn new_empty(cloud_part: &CloudPartition) -> Self {
+impl<'a> F<'a> {
+    fn new_empty(cloud_part: &'a CloudPartition) -> Self {
         F {
             f: Graph::new(),
             node_to_cloud: Vec::new(),
             cloud_to_node: vec![usize::MAX; cloud_part.g.nodes.len()],
             weights: Vec::new(),
+            cloud_part,
         }
     }
-    pub fn new(cloud_part: &CloudPartition) -> Self {
+
+    pub fn new(cloud_part: &'a CloudPartition) -> Self {
         let mut f = Self::new_empty(cloud_part);
-        f.add_big_and_critical(cloud_part);
-        f.add_edges_big_critical(cloud_part);
-        f.add_meta_leaves(cloud_part);
-        f.add_meta_bridges(cloud_part);
+        f.add_big_and_critical();
+        f.add_edges_big_critical();
+        f.add_meta_leaves();
+        f.add_meta_bridges();
         f
     }
 
-    fn add_big_and_critical(&mut self, cloud_part: &CloudPartition) {
-        let mut x = ChoiceDict::new(cloud_part.g.nodes.len());
-        let mut visited = ChoiceDict::new(cloud_part.g.nodes.len());
-        let mut big_clouds: Vec<usize> = cloud_part.big.iter_1().collect();
-        let mut critical_clouds: Vec<usize> = cloud_part.critical.iter_1().collect();
+    pub fn expand(&self, v: usize) -> Subgraph<'a> {
+        match self.cloud_part.r#type(v) {
+            CloudType::Big | CloudType::Critical => self.cloud_part.cloud(v),
+            CloudType::Bridge => self.expand_leaf(v),
+            CloudType::Leaf => self.expand_bridge(v),
+            _ => panic!("something went wrong constructing bridge, leaf and critical"),
+        }
+    }
+
+    fn expand_leaf(&self, v: usize) -> Subgraph<'a> {
+        let mut g_leaf = self.cloud_part.cloud(v);
+        let c = self.cloud_part.cloud(
+            *g_leaf
+                .subset
+                .iter_1()
+                .flat_map(|n| self.cloud_part.g.neighbors(n))
+                .find(|n| g_leaf.subset.get(**n) == 0)
+                .unwrap(),
+        );
+
+        c.subset.iter_1().for_each(|n| g_leaf.add_to_subgraph(n));
+
+        let neighbors: Vec<usize> = c
+            .subset
+            .iter_1()
+            .flat_map(|n| self.cloud_part.g.neighbors(n))
+            .filter(|n| {
+                g_leaf.subset.get(**n) == 0 && self.cloud_part.r#type(**n) == CloudType::Leaf
+            })
+            .copied()
+            .collect();
+
+        for neighbor in neighbors {
+            if g_leaf.subset.get(neighbor) == 1 {
+                continue;
+            }
+            let c_1 = self.cloud_part.cloud(neighbor);
+            c_1.subset.iter_1().for_each(|n| g_leaf.add_to_subgraph(n));
+        }
+
+        g_leaf
+    }
+
+    fn expand_bridge(&self, _v: usize) -> Subgraph<'a> {
+        todo!()
+    }
+
+    fn add_big_and_critical(&mut self) {
+        let mut x = ChoiceDict::new(self.cloud_part.g.nodes.len());
+        let mut visited = ChoiceDict::new(self.cloud_part.g.nodes.len());
+        let mut big_clouds: Vec<usize> = self.cloud_part.big.iter_1().collect();
+        let mut critical_clouds: Vec<usize> = self.cloud_part.critical.iter_1().collect();
         while !big_clouds.is_empty() || !critical_clouds.is_empty() {
             let v = if big_clouds.is_empty() {
                 critical_clouds[0]
             } else {
                 big_clouds[0]
             };
-            let cloud = cloud_part.cloud(v);
+            let cloud = self.cloud_part.cloud(v);
             cloud.subset.iter_1().for_each(|n| visited.set(n));
-            if cloud_part.r#type(v) == CloudType::Big {
-                big_clouds = cloud_part
+            if self.cloud_part.r#type(v) == CloudType::Big {
+                big_clouds = self
+                    .cloud_part
                     .big
                     .iter_1()
                     .filter(|n| visited.get(*n) == 0)
                     .collect();
             }
-            if cloud_part.r#type(v) == CloudType::Critical {
-                critical_clouds = cloud_part
+            if self.cloud_part.r#type(v) == CloudType::Critical {
+                critical_clouds = self
+                    .cloud_part
                     .big
                     .iter_1()
                     .filter(|n| visited.get(*n) == 0)
@@ -221,20 +274,20 @@ impl<'a> F {
         }
     }
 
-    pub fn add_edges_big_critical(&mut self, cloud_part: &CloudPartition) {
-        let mut completed = ChoiceDict::new(cloud_part.g.nodes.len());
-        let mut discovered = ChoiceDict::new(cloud_part.g.nodes.len());
+    pub fn add_edges_big_critical(&mut self) {
+        let mut completed = ChoiceDict::new(self.cloud_part.g.nodes.len());
+        let mut discovered = ChoiceDict::new(self.cloud_part.g.nodes.len());
 
         while let Some(v) = completed
             .iter_0()
-            .find(|n| cloud_part.big.get(*n) == 1 || cloud_part.critical.get(*n) == 1)
+            .find(|n| self.cloud_part.big.get(*n) == 1 || self.cloud_part.critical.get(*n) == 1)
         {
-            let cloud = cloud_part.cloud(v);
+            let cloud = self.cloud_part.cloud(v);
             cloud.subset.iter_1().for_each(|n| completed.set(n));
 
             let mut neighbors = Vec::new();
             cloud.subset.iter_1().for_each(|n| {
-                cloud_part.g.neighbors(n).iter().for_each(|neighbor| {
+                self.cloud_part.g.neighbors(n).iter().for_each(|neighbor| {
                     if !neighbors.contains(neighbor) {
                         neighbors.push(*neighbor)
                     }
@@ -243,15 +296,15 @@ impl<'a> F {
 
             neighbors.retain(|n| {
                 cloud.subset.get(*n) == 0
-                    && (cloud_part.r#type(*n) == CloudType::Big
-                        || cloud_part.r#type(*n) == CloudType::Critical)
+                    && (self.cloud_part.r#type(*n) == CloudType::Big
+                        || self.cloud_part.r#type(*n) == CloudType::Critical)
             });
 
             neighbors.iter().for_each(|n| {
                 if discovered.get(*n) == 1 {
                     return;
                 }
-                let c_1 = cloud_part.cloud(*n);
+                let c_1 = self.cloud_part.cloud(*n);
                 c_1.subset.iter_1().for_each(|w| discovered.set(w));
                 let w = self.cloud_to_node[c_1.subset.iter_1().min().unwrap()];
                 self.f.add_edge((w, self.cloud_to_node[v]));
@@ -261,33 +314,35 @@ impl<'a> F {
         }
     }
 
-    pub fn add_meta_leaves(&mut self, cloud_part: &CloudPartition) {
-        let mut completed = ChoiceDict::new(cloud_part.g.nodes.len());
-        let mut discovered = ChoiceDict::new(cloud_part.g.nodes.len());
+    pub fn add_meta_leaves(&mut self) {
+        let mut completed = ChoiceDict::new(self.cloud_part.g.nodes.len());
+        let mut discovered = ChoiceDict::new(self.cloud_part.g.nodes.len());
 
         while let Some(v) = completed.iter_0().find(|n| {
-            cloud_part.r#type(*n) == CloudType::Big || cloud_part.r#type(*n) == CloudType::Critical
+            self.cloud_part.r#type(*n) == CloudType::Big
+                || self.cloud_part.r#type(*n) == CloudType::Critical
         }) {
-            let cloud = cloud_part.cloud(v);
+            let cloud = self.cloud_part.cloud(v);
             cloud.subset.iter_1().for_each(|n| completed.set(n));
 
             let mut neighbors = Vec::new();
             cloud.subset.iter_1().for_each(|n| {
-                cloud_part.g.neighbors(n).iter().for_each(|neighbor| {
+                self.cloud_part.g.neighbors(n).iter().for_each(|neighbor| {
                     if !neighbors.contains(neighbor) {
                         neighbors.push(*neighbor)
                     }
                 })
             });
 
-            neighbors
-                .retain(|n| cloud.subset.get(*n) == 0 && cloud_part.r#type(*n) == CloudType::Leaf);
+            neighbors.retain(|n| {
+                cloud.subset.get(*n) == 0 && self.cloud_part.r#type(*n) == CloudType::Leaf
+            });
 
             neighbors.iter().for_each(|n| {
                 if discovered.get(*n) == 1 {
                     return;
                 }
-                let c_1 = cloud_part.cloud(*n);
+                let c_1 = self.cloud_part.cloud(*n);
                 c_1.subset.iter_1().for_each(|w| discovered.set(w));
             });
 
@@ -307,25 +362,25 @@ impl<'a> F {
         }
     }
 
-    pub fn add_meta_bridges(&'a mut self, cloud_part: &'a CloudPartition) {
-        let mut completed = ChoiceDict::new(cloud_part.g.nodes.len());
-        let mut discovered = ChoiceDict::new(cloud_part.g.nodes.len());
+    pub fn add_meta_bridges(&mut self) {
+        let mut completed = ChoiceDict::new(self.cloud_part.g.nodes.len());
+        let mut discovered = ChoiceDict::new(self.cloud_part.g.nodes.len());
         //let mut _g_a = cloud_part.g.clone();
 
         while let Some(v) = completed
             .iter_0()
-            .find(|n| cloud_part.big.get(*n) == 1 || cloud_part.critical.get(*n) == 1)
+            .find(|n| self.cloud_part.big.get(*n) == 1 || self.cloud_part.critical.get(*n) == 1)
         {
-            let cloud = cloud_part.cloud(v);
+            let cloud = self.cloud_part.cloud(v);
             cloud.subset.iter_1().for_each(|n| completed.set(n));
 
-            let mut g_b = self.construct_g_b(cloud_part, &cloud);
+            let mut g_b = self.construct_g_b(self.cloud_part, &cloud);
 
             while let Some(b_1) = discovered
                 .iter_0()
-                .find(|n| g_b.nodes[*n] == 0 && cloud_part.r#type(*n) == CloudType::Bridge)
+                .find(|n| g_b.nodes[*n] == 0 && self.cloud_part.r#type(*n) == CloudType::Bridge)
             {
-                let b = cloud_part.cloud(b_1);
+                let b = self.cloud_part.cloud(b_1);
                 //remove all edges incident to b AND c
                 b.subset.iter_1().for_each(|n_b| {
                     let neighbors: Vec<usize> = g_b
@@ -347,13 +402,13 @@ impl<'a> F {
                     .filter(|(_, x)| **x == 0)
                     .map(|(i, _)| i)
                     .find(|n| {
-                        cloud_part.r#type(*n) != CloudType::Bridge
+                        self.cloud_part.r#type(*n) != CloudType::Bridge
                             && cloud.subset.get(*n) == 0
                             && b.subset.get(*n) == 0
                     })
                     .unwrap();
 
-                let c_dash = cloud_part.cloud(c_1_start);
+                let c_dash = self.cloud_part.cloud(c_1_start);
                 let mut weight = 0_usize;
 
                 //explore all adjacent bridge clouds
@@ -364,9 +419,10 @@ impl<'a> F {
                     .iter_1()
                     .flat_map(|n| g_b.neighbors(n))
                     .filter(|n| {
-                        c_dash.subset.get(**n) == 0 && cloud_part.r#type(**n) == CloudType::Bridge
+                        c_dash.subset.get(**n) == 0
+                            && self.cloud_part.r#type(**n) == CloudType::Bridge
                     })
-                    .map(|n| cloud_part.cloud(*n))
+                    .map(|n| self.cloud_part.cloud(*n))
                     .for_each(|n| {
                         if !adjacent_bridge_clouds.contains(&n) {
                             adjacent_bridge_clouds.push(n)
@@ -469,24 +525,27 @@ mod tests {
             vec![
                 [1, 6].to_vec(),
                 [0, 2, 7].to_vec(),
-                [1, 3, 8, 15].to_vec(),
+                [1, 3, 8].to_vec(),
                 [2, 4, 9].to_vec(),
                 [3, 5, 10].to_vec(),
                 [4, 11].to_vec(),
                 [0, 7, 12].to_vec(),
                 [1, 6, 8, 13].to_vec(),
-                [2, 7, 9, 14, 15].to_vec(),
-                [3, 8, 10].to_vec(),
+                [2, 7, 9, 14].to_vec(),
+                [3, 8, 10, 15].to_vec(),
                 [4, 9, 11, 16].to_vec(),
                 [5, 10, 17].to_vec(),
                 [6, 13].to_vec(),
                 [7, 12, 14].to_vec(),
                 [8, 13].to_vec(),
-                [2, 8].to_vec(),
+                [9].to_vec(),
                 [10, 17].to_vec(),
                 [11, 16].to_vec(),
             ],
         );
+        let g_dot = dot_graph(&graph, &[]);
+        fs::write("./g.dot", g_dot).unwrap();
+
         let cloud_part = CloudPartition::new(&graph);
         let subgraphs: Vec<Subgraph> = cloud_part
             .start
@@ -494,15 +553,14 @@ mod tests {
             .map(|n| cloud_part.cloud(n))
             .collect();
 
-        let g_1_dot = dot_graph(&cloud_part.g_1, &[]);
-        fs::write("./g_1.dot", g_1_dot).unwrap();
-
         let cloud_p_dot = dot_graph(&graph, &subgraphs);
         fs::write("./cloud_part.dot", cloud_p_dot).unwrap();
 
         let f = F::new(&cloud_part);
         let f_dot = dot_graph(&f.f, &[]);
         fs::write("./f.dot", f_dot).unwrap();
+
+        //println!("{:?}", f.expand(15).subset.iter_1().collect::<Vec<usize>>());
     }
 
     #[test]
