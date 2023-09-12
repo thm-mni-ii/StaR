@@ -1,16 +1,22 @@
 use crate::data_structures::choice_dict::ChoiceDict;
-use crate::data_structures::graph::Graph;
 use std::collections::VecDeque;
 
+pub trait GraphLike {
+    fn neighbors(&self, node: usize) -> Vec<usize>;
+    fn get_nodes(&self) -> Vec<usize>;
+}
 /// An iterator iterating over nodes of a graph in a breadth-first-search order
-pub struct StandardBFS<'a> {
+pub struct StandardBFS<'a, T: GraphLike> {
     start: Option<usize>,
-    graph: &'a Graph,
+    graph: &'a T,
     visited: Vec<bool>,
     queue: VecDeque<usize>,
 }
 
-impl<'a> Iterator for StandardBFS<'a> {
+impl<'a, G> Iterator for StandardBFS<'a, G>
+where
+    G: GraphLike,
+{
     type Item = usize;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -27,8 +33,8 @@ impl<'a> Iterator for StandardBFS<'a> {
         let neighbors = self.graph.neighbors(temp);
 
         for n in neighbors {
-            if !self.visited[*n] {
-                self.queue.push_back(*n);
+            if !self.visited[n] {
+                self.queue.push_back(n);
             }
         }
 
@@ -36,11 +42,14 @@ impl<'a> Iterator for StandardBFS<'a> {
     }
 }
 
-impl<'a> StandardBFS<'a> {
+impl<'a, G> StandardBFS<'a, G>
+where
+    G: GraphLike,
+{
     /// Returns a new Standard BFS iterator. Takes a reference to a graph and a starting node.
     ///
     /// Time complexity for the entire BFS: O(n)
-    /// # Example
+    /// # ExampleGraph
     /// ```
     /// use star::algorithms::bfs::StandardBFS;
     /// use star::data_structures::graph::Graph;
@@ -55,29 +64,32 @@ impl<'a> StandardBFS<'a> {
     ///  StandardBFS::new(&graph, 0);
     /// ```
 
-    pub fn new(graph: &'a Graph, start: usize) -> Self {
+    pub fn new(graph: &'a G, start: usize) -> Self {
         Self {
             start: Some(start),
             graph,
             queue: VecDeque::new(),
-            visited: vec![false; graph.nodes.len()],
+            visited: vec![false; graph.get_nodes().len()],
         }
     }
 }
 
 //----------------------------------------------------------------
 
-pub struct ChoiceDictBFS<'a> {
+pub struct ChoiceDictBFS<'a, G> {
     start: usize,
     start_needed: bool,
     node_with_neighbors_left: Option<usize>,
-    graph: &'a Graph,
+    graph: &'a G,
     colors: ChoiceDict,
     colors_2: ChoiceDict,
 }
 
 /// An iterator iterating over nodes of a graph in a breadth-first-search order. Takes less space than a standard BFS. Based on: https://arxiv.org/pdf/1812.10950.pdf
-impl<'a> Iterator for ChoiceDictBFS<'a> {
+impl<'a, G> Iterator for ChoiceDictBFS<'a, G>
+where
+    G: GraphLike,
+{
     type Item = usize;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -106,10 +118,10 @@ impl<'a> Iterator for ChoiceDictBFS<'a> {
         {
             self.node_with_neighbors_left = Some(node);
             for neighbor in self.graph.neighbors(node) {
-                if self.colors.get(*neighbor) == 0 {
-                    self.colors.set(*neighbor);
-                    self.colors_2.set(*neighbor);
-                    ret = Some(*neighbor);
+                if self.colors.get(neighbor) == 0 {
+                    self.colors.set(neighbor);
+                    self.colors_2.set(neighbor);
+                    ret = Some(neighbor);
                     break;
                 }
             }
@@ -134,7 +146,10 @@ impl<'a> Iterator for ChoiceDictBFS<'a> {
     }
 }
 
-impl<'a> ChoiceDictBFS<'a> {
+impl<'a, G> ChoiceDictBFS<'a, G>
+where
+    G: GraphLike,
+{
     /// Returns a new BFS iterator using Choice Dictionaries. Takes a reference to a graph and a starting node.
     ///
     /// Time complexity for the entire BFS: O(n+m), Space complexity: n * log(3) + O(log(n)^2)
@@ -153,14 +168,14 @@ impl<'a> ChoiceDictBFS<'a> {
     ///  ChoiceDictBFS::new(&graph, 0);
     /// ```
 
-    pub fn new(graph: &'a Graph, start: usize) -> Self {
+    pub fn new(graph: &'a G, start: usize) -> Self {
         Self {
             start,
             start_needed: true,
             node_with_neighbors_left: None,
             graph,
-            colors: ChoiceDict::new(graph.nodes.len()),
-            colors_2: ChoiceDict::new(graph.nodes.len()),
+            colors: ChoiceDict::new(graph.get_nodes().len()),
+            colors_2: ChoiceDict::new(graph.get_nodes().len()),
         }
     }
 }

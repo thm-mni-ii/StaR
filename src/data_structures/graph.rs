@@ -1,6 +1,8 @@
 use core::panic;
 use std::io::{BufRead, BufReader, ErrorKind, Read};
 
+use crate::algorithms::bfs::GraphLike;
+
 type NodeType = usize;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -9,6 +11,38 @@ pub struct Graph {
     pub nodes: Vec<u8>, //0: valid entry, 1: invalid entry (deleted)
     pub edges: Vec<Vec<usize>>,
     pub back_edges: Vec<Vec<usize>>,
+}
+
+impl GraphLike for Graph {
+    /// Returns neighboring nodes of the given node.
+    ///
+    /// Time complexity: O(1)
+    /// # Example
+    /// ```
+    /// use star::data_structures::graph::Graph;
+    /// let graph = Graph::new_with_edges(
+    ///     2,
+    ///     vec![
+    ///         [1].to_vec(),
+    ///         [0].to_vec(),
+    ///     ],
+    /// );
+    ///
+    /// assert_eq!(*graph.neighbors(0), vec![1])
+    /// ```
+    fn neighbors(&self, index: NodeType) -> Vec<NodeType> {
+        if index >= self.nodes.len() {
+            panic!("node {} does not exist", index);
+        }
+        if self.nodes[index] == 1 {
+            panic!("node {} has been deleted", index);
+        }
+        self.edges[index].clone()
+    }
+
+    fn get_nodes(&self) -> Vec<usize> {
+        self.nodes.iter().enumerate().map(|n| n.0).collect()
+    }
 }
 
 impl Default for Graph {
@@ -95,32 +129,6 @@ impl Graph {
         }
     }
 
-    /// Returns neighboring nodes of the given node.
-    ///
-    /// Time complexity: O(1)
-    /// # Example
-    /// ```
-    /// use star::data_structures::graph::Graph;
-    /// let graph = Graph::new_with_edges(
-    ///     2,
-    ///     vec![
-    ///         [1].to_vec(),
-    ///         [0].to_vec(),
-    ///     ],
-    /// );
-    ///
-    /// assert_eq!(*graph.neighbors(0), vec![1])
-    /// ```
-    pub fn neighbors(&self, index: NodeType) -> &Vec<NodeType> {
-        if index >= self.nodes.len() {
-            panic!("node {} does not exist", index);
-        }
-        if self.nodes[index] == 1 {
-            panic!("node {} has been deleted", index);
-        }
-        &self.edges[index]
-    }
-
     /// Adds a node to the graph, takes a Vec containing edges to that node. Returns the index of the new node.
     ///
     /// Time complexity: O(n)
@@ -176,7 +184,7 @@ impl Graph {
     /// ```
     pub fn remove_node(&mut self, index: NodeType) {
         if index < self.nodes.len() {
-            let neighbors = self.neighbors(index).clone();
+            let neighbors = self.neighbors(index);
             for n in neighbors {
                 self.remove_edge((n, index))
             }
@@ -266,6 +274,18 @@ impl Graph {
         self.edges[edge.0].retain(|e| edge.1 != *e);
         self.edges[edge.1].retain(|e| edge.0 != *e)
     }
+
+    /*pub fn remove_edge_unchecked(&mut self, edge: (NodeType, NodeType)) {
+        self.back_edges[edge.0].remove(
+            self.edges[edge.0]
+                .iter()
+                .enumerate()
+                .find(|e| *e.1 == edge.1)
+                .map(|e| e.0)
+                .unwrap(),
+        );
+        self.edges[edge.0].retain(|e| edge.1 != *e);
+    }*/
 }
 
 impl<U: Read> TryFrom<BufReader<U>> for Graph {
@@ -360,7 +380,7 @@ fn parse_order(elements: &[&str]) -> Result<usize, std::io::Error> {
 mod tests {
     use std::io::BufReader;
 
-    use crate::data_structures::graph::Graph;
+    use crate::{algorithms::bfs::GraphLike, data_structures::graph::Graph};
 
     #[test]
     fn test_back_edges() {

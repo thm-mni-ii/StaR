@@ -3,6 +3,8 @@ use crate::data_structures::choice_dict::ChoiceDict;
 use crate::data_structures::graph::Graph;
 use crate::data_structures::subgraph::Subgraph;
 
+use super::bfs::{GraphLike, StandardBFS};
+
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum CloudType {
     Big,
@@ -12,6 +14,8 @@ pub enum CloudType {
     Leaf,
 }
 
+//OPTIMIERUNGEN: Operationen wie add_edge, remove_edge, remove_node sollten eine unchecked Variante haben mit O(1) Laufzeit
+
 #[derive(Debug)]
 pub struct CloudPartition<'a> {
     start: ChoiceDict,
@@ -20,12 +24,16 @@ pub struct CloudPartition<'a> {
     leaf: ChoiceDict,
     bridge: ChoiceDict,
     critical: ChoiceDict,
-    g_1: Graph,
+    g_1: Subgraph<'a>,
     g: &'a Graph,
 }
 
 impl<'b> CloudPartition<'b> {
     fn new_empty(graph: &'b Graph) -> Self {
+        let mut subset = ChoiceDict::new(graph.nodes.len());
+        for n in 0..graph.nodes.len() {
+            subset.set(n);
+        }
         CloudPartition {
             start: ChoiceDict::new(graph.nodes.len()),
             big: ChoiceDict::new(graph.nodes.len()),
@@ -33,7 +41,7 @@ impl<'b> CloudPartition<'b> {
             leaf: ChoiceDict::new(graph.nodes.len()),
             bridge: ChoiceDict::new(graph.nodes.len()),
             critical: ChoiceDict::new(graph.nodes.len()),
-            g_1: graph.clone(),
+            g_1: Subgraph::new(graph, subset),
             g: graph,
         }
     }
@@ -124,7 +132,7 @@ impl<'b> CloudPartition<'b> {
             self.start.set(node);
             let mut subgraph = Vec::new();
 
-            ChoiceDictBFS::new(&self.g_1, node)
+            StandardBFS::new(&self.g_1, node)
                 .enumerate()
                 .take_while(|(i, _)| ((*i + 1) as f32) <= (graph.nodes.len() as f32).log2())
                 .map(|(_, n)| n)
@@ -155,6 +163,7 @@ impl<'b> CloudPartition<'b> {
 pub struct F<'a> {
     f: Graph,
     node_to_cloud: Vec<usize>,
+    //OPTIMIERUNG: Dieser Vec braucht bedeutend mehr Speicher als theoretisch möglich
     cloud_to_node: Vec<usize>,
     weights: Vec<usize>,
     cloud_part: &'a CloudPartition<'a>,
@@ -192,11 +201,11 @@ impl<'a> F<'a> {
     fn expand_leaf(&self, v: usize) -> Subgraph<'a> {
         let mut g_leaf = self.cloud_part.cloud(self.node_to_cloud[v]);
         let c = self.cloud_part.cloud(
-            *g_leaf
+            g_leaf
                 .subset
                 .iter_1()
                 .flat_map(|n| self.cloud_part.g.neighbors(n))
-                .find(|n| g_leaf.subset.get(**n) == 0)
+                .find(|n| g_leaf.subset.get(*n) == 0)
                 .unwrap(),
         );
 
@@ -329,6 +338,7 @@ impl<'a> F<'a> {
     }
 
     pub fn add_meta_bridges(&mut self) {
+        //OPTIMIERUNG: Nochmal nach Paper implementieren, effizienter und so
         let mut completed = ChoiceDict::new(self.cloud_part.g.nodes.len());
         let mut discovered = ChoiceDict::new(self.cloud_part.g.nodes.len());
         //let mut _g_a = cloud_part.g.clone();
@@ -505,9 +515,9 @@ mod tests {
         let cloud_p_dot = dot_graph(&graph, &subgraphs);
         fs::write("./cloud_part.dot", cloud_p_dot).unwrap();
 
-        let f = F::new(&cloud_part);
-        let f_dot = dot_graph(&f.f, &[]);
-        fs::write("./f.dot", f_dot).unwrap();
+        //let f = F::new(&cloud_part);
+        //let f_dot = dot_graph(&f.f, &[]);
+        //fs::write("./f.dot", f_dot).unwrap();
         //println!("{:?}", f.expand(15).subset.iter_1().collect::<Vec<usize>>());
     }
 
