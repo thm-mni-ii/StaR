@@ -121,9 +121,14 @@ pub fn dot_graph(graph: &Graph, subgraphs: &[Subgraph]) -> String {
     subgraphs.iter().enumerate().for_each(|(i, sg)| {
         let color = available_colors[i % available_colors.len()];
         graph_string.push_str(&format!("subgraph cluster_{} {{style=invis;", i));
-        sg.subset.iter_1().for_each(|v| {
-            graph_string.push_str(&format!("{} [fillcolor={}, style=filled];", v, color));
-        });
+        sg.subset
+            .iter()
+            .enumerate()
+            .filter(|(_, n)| *n.as_ref())
+            .map(|(i, _)| i)
+            .for_each(|v| {
+                graph_string.push_str(&format!("{} [fillcolor={}, style=filled];", v, color));
+            });
         graph_string.push('}');
     });
 
@@ -138,7 +143,7 @@ mod tests {
     fn test_dot_graph() {
         use super::dot_graph;
         use crate::data_structures::graph::Graph;
-        use crate::data_structures::{choice_dict::ChoiceDict, subgraph::Subgraph};
+        use crate::data_structures::subgraph::Subgraph;
         let graph = Graph::new_with_edges(
             6,
             vec![
@@ -150,14 +155,9 @@ mod tests {
                 [].to_vec(),
             ],
         );
-        let mut subset = ChoiceDict::new(graph.nodes.len());
-        subset.set(0);
-        subset.set(3);
-        subset.set(4);
+        let subset = vec![0, 3, 4];
 
-        let mut subset1 = ChoiceDict::new(graph.nodes.len());
-        subset1.set(1);
-        subset1.set(2);
+        let subset1 = vec![1, 2];
 
         let sub = Subgraph::new(&graph, subset);
         let sub1 = Subgraph::new(&graph, subset1);

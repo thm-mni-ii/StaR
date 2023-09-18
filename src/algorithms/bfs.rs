@@ -49,7 +49,7 @@ where
     /// Returns a new Standard BFS iterator. Takes a reference to a graph and a starting node.
     ///
     /// Time complexity for the entire BFS: O(n)
-    /// # ExampleGraph
+    /// # Example
     /// ```
     /// use star::algorithms::bfs::StandardBFS;
     /// use star::data_structures::graph::Graph;
@@ -182,6 +182,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    //TODO: Tests mit Subgraphen
     use crate::{
         algorithms::bfs::{ChoiceDictBFS, StandardBFS},
         data_structures::graph::Graph,

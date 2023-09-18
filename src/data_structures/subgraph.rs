@@ -1,15 +1,15 @@
+use crate::algorithms::bfs::GraphLike;
+use bitvec::prelude::*;
 use core::panic;
 
-use crate::algorithms::bfs::GraphLike;
-
-use super::{choice_dict::ChoiceDict, graph::Graph};
+use super::graph::Graph;
 
 #[derive(Debug, PartialEq, Clone)]
 /// Data structure representing Subgraphs
 pub struct Subgraph<'a> {
     pub graph: &'a Graph,
-    pub subset: ChoiceDict,
-    pub subset_edges: Vec<ChoiceDict>,
+    pub subset: BitVec,
+    pub subset_edges: Vec<BitVec>,
 }
 
 impl GraphLike for Subgraph<'_> {
@@ -38,7 +38,7 @@ impl GraphLike for Subgraph<'_> {
     /// sub.neighbors(3);
     /// ```
     fn neighbors(&self, node: usize) -> Vec<usize> {
-        if self.subset.get(node) == 0 {
+        if self.subset.get(node).as_deref() == Some(&false) {
             panic!("node {} is not part of the subgraph", node);
         }
 
@@ -46,7 +46,10 @@ impl GraphLike for Subgraph<'_> {
             .neighbors(node)
             .iter()
             .enumerate()
-            .filter(|(i, n)| self.subset.get(**n) == 1 && self.subset_edges[node].get(*i) == 1)
+            .filter(|(i, n)| {
+                self.subset.get(**n).as_deref() == Some(&true)
+                    && self.subset_edges[node].get(*i).as_deref() == Some(&true)
+            })
             .map(|(_, n)| *n)
             .collect()
     }
@@ -76,7 +79,12 @@ impl GraphLike for Subgraph<'_> {
     /// sub.get_nodes();
     /// ```
     fn get_nodes(&self) -> Vec<usize> {
-        self.subset.iter_1().collect()
+        self.subset
+            .iter()
+            .enumerate()
+            .filter(|(_, n)| *n.as_ref())
+            .map(|(i, _)| i)
+            .collect()
     }
 }
 
@@ -107,22 +115,24 @@ impl<'a> Subgraph<'a> {
     ///
     /// let sub = Subgraph::new(&graph, subset);
     /// ```
-    pub fn new(graph: &'a Graph, subset: ChoiceDict) -> Self {
+    pub fn new(graph: &'a Graph, subset: Vec<usize>) -> Self {
+        let mut subset_vec = bitvec![0; graph.nodes.len()];
+        subset.iter().for_each(|n| subset_vec.set(*n, true));
         let mut subset_edges = Vec::new();
         for i in 0..graph.nodes.len() {
             let neighbors = graph.neighbors(i);
-            subset_edges.push(ChoiceDict::new(neighbors.len()));
-            if subset.get(i) == 1 {
+            subset_edges.push(bitvec![0; neighbors.len()]);
+            if subset_vec.get(i).as_deref() == Some(&true) {
                 neighbors.iter().enumerate().for_each(|(n, node)| {
-                    if subset.get(*node) == 1 {
-                        subset_edges[i].set(n);
+                    if subset_vec.get(*node).as_deref() == Some(&true) {
+                        subset_edges[i].set(n, true);
                     }
                 });
             }
         }
         Subgraph {
             graph,
-            subset,
+            subset: subset_vec,
             subset_edges,
         }
     }
@@ -158,13 +168,21 @@ impl<'a> Subgraph<'a> {
             panic!("node {} has been deleted", node)
         }
 
-        self.subset.set(node);
-        for i in 0..self.graph.neighbors(node).len() {
-            self.subset_edges[i].set(node);
-        }
-        for n in self.graph.neighbors(node) {
-            if self.subset.get(n) == 1 {
-                self.subset_edges[node].set(n);
+        self.subset.set(node, true);
+        let neighbors = self.graph.neighbors(node);
+        for i in neighbors.iter().enumerate() {
+            if self.subset.get(neighbors[i.0]).as_deref() == Some(&true) {
+                self.subset_edges[node].set(i.0, true);
+                self.subset_edges[neighbors[i.0]].set(
+                    self.graph
+                        .neighbors(neighbors[i.0])
+                        .iter()
+                        .enumerate()
+                        .find(|(_, n)| **n == node)
+                        .map(|(i, _)| i)
+                        .unwrap(),
+                    true,
+                );
             }
         }
     }
@@ -199,11 +217,13 @@ impl<'a> Subgraph<'a> {
         }
 
         self.subset.remove(node);
-        self.subset_edges[node].reset();
+        self.subset_edges[node].fill(false);
     }
 
     pub fn remove_edge(&mut self, edge: (usize, usize)) {
-        if self.subset.get(edge.0) == 0 || self.subset.get(edge.1) == 0 {
+        if self.subset.get(edge.0).as_deref() == Some(&false)
+            || self.subset.get(edge.1).as_deref() == Some(&false)
+        {
             return;
         }
 
@@ -225,12 +245,14 @@ impl<'a> Subgraph<'a> {
             return;
         }
 
-        self.subset_edges[edge.0].remove(a.unwrap());
-        self.subset_edges[edge.1].remove(b.unwrap());
+        self.subset_edges[edge.0].set(a.unwrap(), false);
+        self.subset_edges[edge.1].set(b.unwrap(), false);
     }
 
     pub fn add_edge(&mut self, edge: (usize, usize)) {
-        if self.subset.get(edge.0) == 0 || self.subset.get(edge.1) == 0 {
+        if self.subset.get(edge.0).as_deref() == Some(&false)
+            || self.subset.get(edge.1).as_deref() == Some(&false)
+        {
             panic!("node {} or {} is not part of the subgraph", edge.0, edge.1)
         }
 
@@ -243,17 +265,14 @@ impl<'a> Subgraph<'a> {
             return;
         }
 
-        self.subset_edges[edge.0].set(*a.unwrap());
-        self.subset_edges[edge.1].set(*b.unwrap());
+        self.subset_edges[edge.0].set(*a.unwrap(), true);
+        self.subset_edges[edge.1].set(*b.unwrap(), true);
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        algorithms::bfs::GraphLike,
-        data_structures::{choice_dict::ChoiceDict, graph::Graph},
-    };
+    use crate::{algorithms::bfs::GraphLike, data_structures::graph::Graph};
 
     use super::Subgraph;
 
@@ -271,10 +290,7 @@ mod tests {
             ],
         );
 
-        let mut subset = ChoiceDict::new(graph.nodes.len());
-        subset.set(0);
-        subset.set(3);
-        subset.set(4);
+        let subset = vec![0, 3, 4];
 
         let sub = Subgraph::new(&graph, subset);
 
@@ -296,10 +312,7 @@ mod tests {
             ],
         );
 
-        let mut subset = ChoiceDict::new(graph.nodes.len());
-        subset.set(0);
-        subset.set(3);
-        subset.set(4);
+        let subset = vec![0, 3, 4];
 
         let mut sub = Subgraph::new(&graph, subset);
 
@@ -322,10 +335,7 @@ mod tests {
             ],
         );
 
-        let mut subset = ChoiceDict::new(graph.nodes.len());
-        subset.set(0);
-        subset.set(3);
-        subset.set(4);
+        let subset = vec![0, 3, 4];
 
         let mut sub = Subgraph::new(&graph, subset);
 
@@ -348,10 +358,7 @@ mod tests {
             ],
         );
 
-        let mut subset = ChoiceDict::new(graph.nodes.len());
-        subset.set(0);
-        subset.set(3);
-        subset.set(4);
+        let subset = vec![0, 3, 4];
 
         let sub = Subgraph::new(&graph, subset);
 
@@ -372,10 +379,7 @@ mod tests {
             ],
         );
 
-        let mut subset = ChoiceDict::new(graph.nodes.len());
-        subset.set(0);
-        subset.set(3);
-        subset.set(4);
+        let subset = vec![0, 3, 4];
 
         let sub = Subgraph::new(&graph, subset);
 
@@ -397,10 +401,7 @@ mod tests {
             ],
         );
 
-        let mut subset = ChoiceDict::new(graph.nodes.len());
-        subset.set(0);
-        subset.set(3);
-        subset.set(4);
+        let subset = vec![0, 3, 4];
 
         let sub = Subgraph::new(&graph, subset);
 
@@ -422,10 +423,7 @@ mod tests {
             ],
         );
 
-        let mut subset = ChoiceDict::new(graph.nodes.len());
-        subset.set(0);
-        subset.set(3);
-        subset.set(4);
+        let subset = vec![0, 3, 4];
 
         let mut sub = Subgraph::new(&graph, subset);
 
@@ -435,7 +433,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_add_to_subgraph_panic_deleted() {
-        let mut graph = Graph::new_with_edges(
+        let graph = Graph::new_with_edges(
             6,
             vec![
                 [3, 2].to_vec(),
@@ -447,11 +445,7 @@ mod tests {
             ],
         );
 
-        let mut subset = ChoiceDict::new(graph.nodes.len());
-        graph.remove_node(2);
-        subset.set(0);
-        subset.set(3);
-        subset.set(4);
+        let subset = vec![0, 3, 4];
 
         let mut sub = Subgraph::new(&graph, subset);
 
@@ -473,10 +467,7 @@ mod tests {
             ],
         );
 
-        let mut subset = ChoiceDict::new(graph.nodes.len());
-        subset.set(0);
-        subset.set(3);
-        subset.set(4);
+        let subset = vec![0, 3, 4];
 
         let mut sub = Subgraph::new(&graph, subset);
 

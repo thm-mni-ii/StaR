@@ -573,7 +573,7 @@ impl ChoiceDict {
 
     fn check_bounds(&self, idx: usize) {
         if idx >= self.size {
-            panic!("index out of bounds");
+            panic!("index {} out of bounds for length {}", idx, self.size);
         }
     }
 }
