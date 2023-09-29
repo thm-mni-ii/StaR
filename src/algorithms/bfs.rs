@@ -21,6 +21,7 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.start.is_some() {
+            self.visited[self.start.unwrap()] = true;
             self.queue.push_back(self.start.unwrap());
             self.start = None;
         }
@@ -29,11 +30,12 @@ where
             return None;
         }
         let temp = self.queue.pop_front().unwrap();
-        self.visited[temp] = true;
+        //self.visited[temp] = true;
         let neighbors = self.graph.neighbors(temp);
 
         for n in neighbors {
             if !self.visited[n] {
+                self.visited[n] = true;
                 self.queue.push_back(n);
             }
         }

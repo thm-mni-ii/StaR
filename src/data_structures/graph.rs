@@ -5,7 +5,7 @@ use crate::algorithms::bfs::GraphLike;
 
 type NodeType = usize;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Eq, Hash)]
 /// A basic graph data structure consisting of a vector of nodes and a vector of edges.
 pub struct Graph {
     pub nodes: Vec<u8>, //0: valid entry, 1: invalid entry (deleted)
@@ -347,7 +347,7 @@ fn parse_vertex(v: &str, order: usize) -> Result<usize, std::io::Error> {
             if u >= order {
                 Err(std::io::Error::new(
                     std::io::ErrorKind::InvalidInput,
-                    "Invalid vertex label",
+                    format!("Invalid vertex label {}", u),
                 ))
             } else {
                 Ok(u)
@@ -355,7 +355,7 @@ fn parse_vertex(v: &str, order: usize) -> Result<usize, std::io::Error> {
         }
         Err(_) => Err(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
-            "Invalid vertex label",
+            "Invalid vertex label 1",
         )),
     }
 }

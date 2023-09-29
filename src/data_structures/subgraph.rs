@@ -1,15 +1,14 @@
 use crate::algorithms::bfs::GraphLike;
-use bitvec::prelude::*;
 use core::panic;
 
-use super::graph::Graph;
+use super::{bitvec::FastBitvec, graph::Graph};
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Eq)]
 /// Data structure representing Subgraphs
 pub struct Subgraph<'a> {
     pub graph: &'a Graph,
-    pub subset: BitVec,
-    pub subset_edges: Vec<BitVec>,
+    pub subset: FastBitvec,
+    pub subset_edges: Vec<FastBitvec>,
 }
 
 impl GraphLike for Subgraph<'_> {
@@ -38,7 +37,7 @@ impl GraphLike for Subgraph<'_> {
     /// sub.neighbors(3);
     /// ```
     fn neighbors(&self, node: usize) -> Vec<usize> {
-        if self.subset.get(node).as_deref() == Some(&false) {
+        if !self.subset.get(node) {
             panic!("node {} is not part of the subgraph", node);
         }
 
@@ -46,10 +45,7 @@ impl GraphLike for Subgraph<'_> {
             .neighbors(node)
             .iter()
             .enumerate()
-            .filter(|(i, n)| {
-                self.subset.get(**n).as_deref() == Some(&true)
-                    && self.subset_edges[node].get(*i).as_deref() == Some(&true)
-            })
+            .filter(|(i, n)| self.subset.get(**n) && self.subset_edges[node].get(*i))
             .map(|(_, n)| *n)
             .collect()
     }
@@ -79,12 +75,7 @@ impl GraphLike for Subgraph<'_> {
     /// sub.get_nodes();
     /// ```
     fn get_nodes(&self) -> Vec<usize> {
-        self.subset
-            .iter()
-            .enumerate()
-            .filter(|(_, n)| *n.as_ref())
-            .map(|(i, _)| i)
-            .collect()
+        self.subset.iter_1().copied().collect()
     }
 }
 
@@ -116,15 +107,15 @@ impl<'a> Subgraph<'a> {
     /// let sub = Subgraph::new(&graph, subset);
     /// ```
     pub fn new(graph: &'a Graph, subset: Vec<usize>) -> Self {
-        let mut subset_vec = bitvec![0; graph.nodes.len()];
+        let mut subset_vec = FastBitvec::new(graph.nodes.len());
         subset.iter().for_each(|n| subset_vec.set(*n, true));
         let mut subset_edges = Vec::new();
         for i in 0..graph.nodes.len() {
             let neighbors = graph.neighbors(i);
-            subset_edges.push(bitvec![0; neighbors.len()]);
-            if subset_vec.get(i).as_deref() == Some(&true) {
+            subset_edges.push(FastBitvec::new(neighbors.len()));
+            if subset_vec.get(i) {
                 neighbors.iter().enumerate().for_each(|(n, node)| {
-                    if subset_vec.get(*node).as_deref() == Some(&true) {
+                    if subset_vec.get(*node) {
                         subset_edges[i].set(n, true);
                     }
                 });
@@ -171,7 +162,7 @@ impl<'a> Subgraph<'a> {
         self.subset.set(node, true);
         let neighbors = self.graph.neighbors(node);
         for i in neighbors.iter().enumerate() {
-            if self.subset.get(neighbors[i.0]).as_deref() == Some(&true) {
+            if self.subset.get(neighbors[i.0]) {
                 self.subset_edges[node].set(i.0, true);
                 self.subset_edges[neighbors[i.0]].set(
                     self.graph
@@ -216,14 +207,12 @@ impl<'a> Subgraph<'a> {
             panic!("node {} does not exist", node)
         }
 
-        self.subset.remove(node);
-        self.subset_edges[node].fill(false);
+        self.subset.set(node, false);
+        self.subset_edges[node] = FastBitvec::new(self.graph.neighbors(node).len());
     }
 
     pub fn remove_edge(&mut self, edge: (usize, usize)) {
-        if self.subset.get(edge.0).as_deref() == Some(&false)
-            || self.subset.get(edge.1).as_deref() == Some(&false)
-        {
+        if !self.subset.get(edge.0) || !self.subset.get(edge.1) {
             return;
         }
 
@@ -250,9 +239,7 @@ impl<'a> Subgraph<'a> {
     }
 
     pub fn add_edge(&mut self, edge: (usize, usize)) {
-        if self.subset.get(edge.0).as_deref() == Some(&false)
-            || self.subset.get(edge.1).as_deref() == Some(&false)
-        {
+        if !self.subset.get(edge.0) || !self.subset.get(edge.1) {
             panic!("node {} or {} is not part of the subgraph", edge.0, edge.1)
         }
 

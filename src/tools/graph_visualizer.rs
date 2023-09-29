@@ -1,4 +1,4 @@
-use crate::data_structures::{graph::Graph, subgraph::Subgraph};
+use crate::data_structures::graph::Graph;
 
 /// Generates a .dot file for the given graph. The subgraphs are colored in the order they are given.
 ///
@@ -29,7 +29,7 @@ use crate::data_structures::{graph::Graph, subgraph::Subgraph};
 /// dot_graph(&graph, &[sub, sub1]);
 /// ```
 
-pub fn dot_graph(graph: &Graph, subgraphs: &[Subgraph]) -> String {
+pub fn dot_graph(graph: &Graph, subgraphs: &[Vec<usize>]) -> String {
     let mut graph_string = String::from("graph {");
     let mut already_written: Vec<(usize, usize)> = Vec::new();
     let mut nodes_visited: Vec<bool> = vec![false; graph.nodes.len()];
@@ -40,9 +40,7 @@ pub fn dot_graph(graph: &Graph, subgraphs: &[Subgraph]) -> String {
         "orange",
         "purple",
         "coral",
-        "cyan",
         "darkolivegreen",
-        "darkorchid",
         "darkseagreen",
         "deeppink",
         "gold",
@@ -121,14 +119,9 @@ pub fn dot_graph(graph: &Graph, subgraphs: &[Subgraph]) -> String {
     subgraphs.iter().enumerate().for_each(|(i, sg)| {
         let color = available_colors[i % available_colors.len()];
         graph_string.push_str(&format!("subgraph cluster_{} {{style=invis;", i));
-        sg.subset
-            .iter()
-            .enumerate()
-            .filter(|(_, n)| *n.as_ref())
-            .map(|(i, _)| i)
-            .for_each(|v| {
-                graph_string.push_str(&format!("{} [fillcolor={}, style=filled];", v, color));
-            });
+        sg.iter().for_each(|v| {
+            graph_string.push_str(&format!("{} [fillcolor={}, style=filled];", v, color));
+        });
         graph_string.push('}');
     });
 
@@ -143,7 +136,6 @@ mod tests {
     fn test_dot_graph() {
         use super::dot_graph;
         use crate::data_structures::graph::Graph;
-        use crate::data_structures::subgraph::Subgraph;
         let graph = Graph::new_with_edges(
             6,
             vec![
@@ -158,9 +150,6 @@ mod tests {
         let subset = vec![0, 3, 4];
 
         let subset1 = vec![1, 2];
-
-        let sub = Subgraph::new(&graph, subset);
-        let sub1 = Subgraph::new(&graph, subset1);
-        assert_eq!(dot_graph(&graph, &[sub, sub1]), "graph {0 -- 3;0 -- 2;1 -- 4;1 -- 2;5;subgraph cluster_0 {style=invis;0 [fillcolor=red, style=filled];3 [fillcolor=red, style=filled];4 [fillcolor=red, style=filled];}subgraph cluster_1 {style=invis;1 [fillcolor=green, style=filled];2 [fillcolor=green, style=filled];}}");
+        assert_eq!(dot_graph(&graph, &[subset, subset1]), "graph {0 -- 3;0 -- 2;1 -- 4;1 -- 2;5;subgraph cluster_0 {style=invis;0 [fillcolor=red, style=filled];3 [fillcolor=red, style=filled];4 [fillcolor=red, style=filled];}subgraph cluster_1 {style=invis;1 [fillcolor=green, style=filled];2 [fillcolor=green, style=filled];}}");
     }
 }

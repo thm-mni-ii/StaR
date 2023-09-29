@@ -138,3 +138,6 @@ nohup.out
 doc
 *.dot
 tests
+*.data
+*.data.old
+flamegraph.svg
