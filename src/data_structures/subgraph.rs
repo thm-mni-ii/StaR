@@ -75,7 +75,7 @@ impl GraphLike for Subgraph<'_> {
     /// sub.get_nodes();
     /// ```
     fn get_nodes(&self) -> Vec<usize> {
-        self.subset.iter_1().copied().collect()
+        self.subset.iter_1().collect()
     }
 }
 
