@@ -1,9 +1,8 @@
 use core::panic;
 
-use crate::data_structures::subgraph::Subgraph;
 use crate::data_structures::{bitvec::FastBitvec, graph::Graph};
 
-use super::bfs::{GraphLike, StandardBFS};
+use super::bfs::StandardBFS;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum CloudType {
@@ -30,14 +29,13 @@ pub struct CloudPartition<'a> {
 
 impl<'b> CloudPartition<'b> {
     fn new_empty(graph: &'b Graph) -> Self {
-        //let subset = (0..graph.nodes.len()).collect();
         CloudPartition {
-            start: FastBitvec::new(graph.nodes.len()),
-            big: FastBitvec::new(graph.nodes.len()),
-            small: FastBitvec::new(graph.nodes.len()),
-            leaf: FastBitvec::new(graph.nodes.len()),
-            bridge: FastBitvec::new(graph.nodes.len()),
-            critical: FastBitvec::new(graph.nodes.len()),
+            start: FastBitvec::new(graph.nodes + 1),
+            big: FastBitvec::new(graph.nodes + 1),
+            small: FastBitvec::new(graph.nodes + 1),
+            leaf: FastBitvec::new(graph.nodes + 1),
+            bridge: FastBitvec::new(graph.nodes + 1),
+            critical: FastBitvec::new(graph.nodes + 1),
             g_1: graph.clone(),
             g: graph,
         }
@@ -45,12 +43,12 @@ impl<'b> CloudPartition<'b> {
 
     pub fn new(graph: &'b Graph) -> Self {
         let mut cloud_part = Self::new_empty(graph);
-        cloud_part.cloud_partition(graph, &mut FastBitvec::new(graph.nodes.len()));
+        cloud_part.cloud_partition(graph, &mut FastBitvec::new(graph.nodes));
 
         cloud_part
     }
 
-    pub fn r#type(&self, v: usize) -> CloudType {
+    pub fn cloud_type(&self, v: usize) -> CloudType {
         if self.big.get(v) {
             return CloudType::Big;
         }
@@ -70,14 +68,15 @@ impl<'b> CloudPartition<'b> {
     }
 
     pub fn cloud(&self, v: usize) -> Vec<usize> {
-        StandardBFS::new(&self.g_1, v).collect()
+        let mut visited = FastBitvec::new(self.g.nodes);
+        StandardBFS::new(&self.g_1, v, &mut visited).collect()
     }
 
     pub fn border(&self, v: usize, u: usize) -> bool {
         self.g_1.neighbors(v).contains(&u)
     }
 
-    fn construct_critical_leaf_bridge_new(&mut self) {
+    fn construct_critical_leaf_bridge(&mut self) {
         let mut irrelevant_edges: Vec<FastBitvec> = self
             .g
             .edges
@@ -91,7 +90,7 @@ impl<'b> CloudPartition<'b> {
             .collect::<Vec<usize>>();
         for node in big_nodes {
             self.visit_big_cloud(
-                &mut FastBitvec::new(self.g.nodes.len()),
+                &mut FastBitvec::new(self.g.nodes),
                 &mut irrelevant_edges,
                 node,
             );
@@ -163,17 +162,18 @@ impl<'b> CloudPartition<'b> {
     }
 
     fn increase_node_level(&mut self, node: usize) {
-        if self.critical.get(node) {
-            return;
-        }
-        if self.leaf.get(node) {
-            self.leaf.set(node, false);
-            self.bridge.set(node, true);
-        } else if self.bridge.get(node) {
-            self.bridge.set(node, false);
-            self.critical.set(node, true);
-        } else if !self.leaf.get(node) && !self.bridge.get(node) {
-            self.leaf.set(node, true);
+        match self.cloud_type(node) {
+            CloudType::Bridge => {
+                self.bridge.set(node, false);
+                self.critical.set(node, true);
+            }
+            CloudType::Leaf => {
+                self.leaf.set(node, false);
+                self.bridge.set(node, true);
+            }
+            CloudType::Critical => {}
+            CloudType::Small => self.leaf.set(node, true),
+            _ => {}
         }
     }
 
@@ -182,10 +182,12 @@ impl<'b> CloudPartition<'b> {
             //println!("node: {}", node);
             self.start.set(node, true);
             let mut subgraph = Vec::new();
+            let log = (graph.nodes as f32).log2() as usize;
+            let mut bfs_visited = FastBitvec::new(graph.nodes);
 
-            StandardBFS::new(&self.g_1, node)
+            StandardBFS::new(&self.g_1, node, &mut bfs_visited)
                 .enumerate()
-                .take_while(|(i, _)| ((*i + 1) as f32) <= (graph.nodes.len() as f32).log2())
+                .take_while(|(i, _)| (*i + 1) <= log)
                 .map(|(_, n)| n)
                 .for_each(|n| {
                     visited.set(n, true);
@@ -194,7 +196,7 @@ impl<'b> CloudPartition<'b> {
 
             //println!("subgraph: {:?}", subgraph.len());
 
-            if subgraph.len() >= (graph.nodes.len() as f32).log2() as usize {
+            if subgraph.len() >= log {
                 subgraph.iter().for_each(|n| {
                     self.g.neighbors(*n).iter().for_each(|neighbor| {
                         if !subgraph.contains(neighbor) {
@@ -212,7 +214,7 @@ impl<'b> CloudPartition<'b> {
             "small: {}",
             self.start.iter_1().filter(|n| self.small.get(*n)).count()
         );
-        self.construct_critical_leaf_bridge_new();
+        self.construct_critical_leaf_bridge();
     }
 }
 
@@ -232,7 +234,7 @@ impl<'a> F<'a> {
         F {
             f: Graph::new(),
             node_to_cloud: Vec::new(),
-            cloud_to_node: vec![usize::MAX; cloud_part.g.nodes.len()],
+            cloud_to_node: vec![usize::MAX; cloud_part.g.nodes],
             weights: Vec::new(),
             cloud_part,
             simplified,
@@ -309,19 +311,19 @@ impl<'a> F<'a> {
         Subgraph::new(self.cloud_part.g, subset)
     }*/
 
-    fn expand_bridge(&self, _v: usize) -> Subgraph<'a> {
+    /*fn expand_bridge(&self, _v: usize) -> Subgraph<'a> {
         // create f' that contains big nodes and an edge between two nodes when there is a meta bridge connecting these nodes
         //split each edge: adding corresponding meta bridge, direct edges towards direction of original edge
         todo!()
-    }
+    }*/
 
     fn add_big_and_critical(&mut self) {
-        let mut x = FastBitvec::new(self.cloud_part.g.nodes.len());
-        let mut relevant = FastBitvec::new(self.cloud_part.g.nodes.len());
+        let mut x = FastBitvec::new(self.cloud_part.g.nodes);
+        let mut relevant = FastBitvec::new(self.cloud_part.g.nodes);
 
-        for n in 0..self.cloud_part.g.nodes.len() {
+        for n in 0..self.cloud_part.g.nodes {
             if self.cloud_part.start.get(n) {
-                match self.cloud_part.r#type(n) {
+                match self.cloud_part.cloud_type(n) {
                     CloudType::Big | CloudType::Critical => relevant.set(n, true),
                     CloudType::Bridge => {
                         if self.simplified {
@@ -339,7 +341,7 @@ impl<'a> F<'a> {
             self.weights.push(cloud.len());
             let v_dash = *cloud.iter().min().unwrap();
             self.node_to_cloud.push(v_dash);
-            self.cloud_to_node[v_dash] = self.f.nodes.len() - 1;
+            self.cloud_to_node[v_dash] = self.f.nodes - 1;
             x.set(v_dash, true);
         });
     }
@@ -567,12 +569,7 @@ impl<'a> F<'a> {
 #[cfg(test)]
 mod tests {
 
-    use std::{
-        fs::{self, File},
-        io::BufReader,
-    };
-
-    use crate::tools::graph_visualizer::dot_graph;
+    use std::{fs::File, io::BufReader};
 
     use super::*;
     //use crate::tools::graph_visualizer::*;
@@ -656,7 +653,7 @@ mod tests {
         //let cloud_p_dot = dot_graph(&graph, &subgraphs);
         //fs::write("./cloud_part.dot", cloud_p_dot).unwrap();
 
-        let f = F::new(&cloud_part, true);
+        //let f = F::new(&cloud_part, true);
 
         /*let mut big_nodes = Vec::new();
         let mut critical_nodes = Vec::new();

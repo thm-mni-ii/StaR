@@ -1,7 +1,5 @@
 use crate::data_structures::graph::Graph;
 
-use super::bfs::GraphLike;
-
 /// An iterator iterating over nodes of a graph in depth-first-search order as described in https://drops.dagstuhl.de/opus/volltexte/2015/4921/pdf/21.pdf.
 pub struct DFS<'a> {
     start: usize,
@@ -79,7 +77,7 @@ impl<'a> DFS<'a> {
             graph,
             stack: Vec::with_capacity(2),
             t: Vec::new(),
-            colors: vec![0_u8; graph.nodes.len()],
+            colors: vec![0_u8; graph.nodes],
             preprocess: true,
         }
     }
@@ -109,7 +107,7 @@ impl<'a> DFS<'a> {
             graph,
             stack: Vec::with_capacity(2),
             t: Vec::new(),
-            colors: vec![0_u8; graph.nodes.len()],
+            colors: vec![0_u8; graph.nodes],
             preprocess: false,
         }
     }

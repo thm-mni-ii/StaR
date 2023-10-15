@@ -32,7 +32,7 @@ use crate::data_structures::graph::Graph;
 pub fn dot_graph(graph: &Graph, subgraphs: &[Vec<usize>]) -> String {
     let mut graph_string = String::from("graph {");
     let mut already_written: Vec<(usize, usize)> = Vec::new();
-    let mut nodes_visited: Vec<bool> = vec![false; graph.nodes.len()];
+    let mut nodes_visited: Vec<bool> = vec![false; graph.nodes + 1];
     let available_colors = [
         "red",
         "green",
