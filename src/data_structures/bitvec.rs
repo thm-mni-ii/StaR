@@ -2,7 +2,7 @@ use bitvec::prelude::*;
 
 #[derive(Debug, PartialEq, Clone, Eq)]
 pub struct FastBitvec {
-    bitvec: BitVec,
+    pub bitvec: BitVec,
     //ones: HashSet<usize>,
     //zeros: HashSet<usize>,
 }
@@ -14,6 +14,10 @@ impl FastBitvec {
             //ones: HashSet::new(),
             //zeros: HashSet::from_iter(0..size),
         }
+    }
+
+    pub fn size(&self) -> usize {
+        self.bitvec.len()
     }
 
     pub fn set(&mut self, index: usize, value: bool) {

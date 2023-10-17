@@ -4,7 +4,7 @@ use crate::data_structures::graph::Graph;
 ///
 /// # Example
 /// ```
-/// use star::data_structures::{graph::Graph, choice_dict::ChoiceDict, subgraph::Subgraph};
+/// use star::data_structures::{graph::Graph, choice_dict::ChoiceDict};
 /// use star::tools::graph_visualizer::dot_graph;
 /// let graph = Graph::new_with_edges(
 ///     6,
@@ -17,22 +17,15 @@ use crate::data_structures::graph::Graph;
 ///         [1, 3].to_vec(),
 ///     ],
 /// );
-/// let mut subset = ChoiceDict::new(graph.nodes.len());
-/// subset.set(0);
-/// subset.set(3);
-/// subset.set(4);
-/// let mut subset1 = ChoiceDict::new(graph.nodes.len());
-/// subset1.set(1);
-/// subset1.set(2);
-/// let sub = Subgraph::new(&graph, subset);
-/// let sub1 = Subgraph::new(&graph, subset1);
-/// dot_graph(&graph, &[sub, sub1]);
+/// let mut subset = vec![0, 3, 4];
+/// let mut subset1 = vec![1, 2];
+/// dot_graph(&graph, &[subset, subset1]);
 /// ```
 
 pub fn dot_graph(graph: &Graph, subgraphs: &[Vec<usize>]) -> String {
     let mut graph_string = String::from("graph {");
     let mut already_written: Vec<(usize, usize)> = Vec::new();
-    let mut nodes_visited: Vec<bool> = vec![false; graph.nodes + 1];
+    let mut nodes_visited: Vec<bool> = vec![false; graph.nodes];
     let available_colors = [
         "red",
         "green",

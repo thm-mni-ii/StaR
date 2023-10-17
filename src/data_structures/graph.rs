@@ -126,14 +126,19 @@ impl Graph {
     ///
     /// assert_eq!(*graph.neighbors(0), vec![1])
     /// ```
-    pub fn neighbors(&self, index: NodeType) -> &Vec<NodeType> {
+    pub fn neighbors(&self, index: NodeType) -> Vec<NodeType> {
         if index >= self.nodes {
             panic!("node {} does not exist", index);
         }
         if self.deleted.get(index) {
             panic!("node {} has been deleted", index);
         }
-        &self.edges[index]
+        self.edges[index]
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| !self.edges_deleted[index].get(*i))
+            .map(|(_, n)| *n)
+            .collect()
     }
 
     /// Adds a node to the graph, takes a Vec containing edges to that node. Returns the index of the new node.
@@ -158,6 +163,15 @@ impl Graph {
         self.nodes += 1;
         self.edges.push(vec![]);
         self.back_edges.push(vec![]);
+
+        let mut new_deleted = FastBitvec::new(self.nodes);
+        for i in 0..self.nodes - 1 {
+            new_deleted.set(i, self.deleted.get(i))
+        }
+
+        self.deleted = new_deleted;
+
+        self.edges_deleted.push(FastBitvec::new(edges.len()));
 
         edges.iter().for_each(|e| {
             if *e >= self.nodes {
@@ -221,6 +235,18 @@ impl Graph {
     /// ```
     //TDOD: hier muss auch noch das deleted kram mit rein
     pub fn add_edge(&mut self, edge: (NodeType, NodeType)) {
+        let mut new_deleted_edges_0 = FastBitvec::new(self.edges_deleted[edge.0].size() + 1);
+        for i in 0..self.edges_deleted[edge.0].size() {
+            new_deleted_edges_0.set(i, self.edges_deleted[edge.0].get(i))
+        }
+        self.edges_deleted[edge.0] = new_deleted_edges_0;
+
+        let mut new_deleted_edges_1 = FastBitvec::new(self.edges_deleted[edge.1].size() + 1);
+        for i in 0..self.edges_deleted[edge.1].size() {
+            new_deleted_edges_1.set(i, self.edges_deleted[edge.1].get(i))
+        }
+        self.edges_deleted[edge.1] = new_deleted_edges_1;
+
         if self.edges[edge.0].contains(&edge.1) {
             return;
         }
@@ -265,24 +291,22 @@ impl Graph {
             return;
         }
 
-        self.back_edges[edge.1].remove(
-            self.edges[edge.1]
-                .iter()
-                .enumerate()
-                .find(|e| *e.1 == edge.0)
-                .map(|e| e.0)
-                .unwrap(),
-        );
-        self.back_edges[edge.0].remove(
-            self.edges[edge.0]
-                .iter()
-                .enumerate()
-                .find(|e| *e.1 == edge.1)
-                .map(|e| e.0)
-                .unwrap(),
-        );
-        self.edges[edge.0].retain(|e| edge.1 != *e);
-        self.edges[edge.1].retain(|e| edge.0 != *e)
+        let i = self.edges[edge.0]
+            .iter()
+            .enumerate()
+            .find(|(i, _)| self.edges[edge.0][*i] == edge.1)
+            .unwrap()
+            .0;
+
+        let j = self.edges[edge.1]
+            .iter()
+            .enumerate()
+            .find(|(i, _)| self.edges[edge.1][*i] == edge.0)
+            .unwrap()
+            .0;
+
+        self.edges_deleted[edge.0].set(i, true);
+        self.edges_deleted[edge.1].set(j, true);
     }
 
     /*pub fn remove_edge_unchecked(&mut self, edge: (NodeType, NodeType)) {
@@ -388,6 +412,7 @@ fn parse_order(elements: &[&str]) -> Result<usize, std::io::Error> {
 
 #[cfg(test)]
 mod tests {
+    use bitvec::prelude::*;
     use std::io::BufReader;
 
     use crate::data_structures::graph::Graph;
@@ -420,14 +445,6 @@ mod tests {
         assert_eq!(graph.back_edges[4], vec![0]);
         assert_eq!(graph.back_edges[5], vec![]);
 
-        graph.remove_edge((0, 3));
-        assert_eq!(graph.back_edges[0], vec![0]);
-        assert_eq!(graph.back_edges[1], vec![0, 1]);
-        assert_eq!(graph.back_edges[2], vec![1, 1]);
-        assert_eq!(graph.back_edges[3], vec![]);
-        assert_eq!(graph.back_edges[4], vec![0]);
-        assert_eq!(graph.back_edges[5], vec![]);
-
         graph.add_edge((2, 4));
 
         assert_eq!(graph.back_edges[2], vec![1, 1, 1]);
@@ -436,7 +453,7 @@ mod tests {
 
     #[test]
     fn test_graph_reader_successful() {
-        let test = "p edge 6 4\ne 1 4\ne 1 3\ne 2 5\ne 2 3".as_bytes();
+        let test = "p 6 4\n0 3\n0 2\n1 4\n1 2".as_bytes();
 
         let graph = Graph::try_from(BufReader::new(test));
         assert_eq!(
@@ -453,14 +470,6 @@ mod tests {
                 ],
             )
         )
-    }
-
-    #[test]
-    fn test_graph_reader_node_zero() {
-        let test = "p edge 6 4\ne 1 4\ne 1 3\ne 2 0\ne 2 3".as_bytes();
-
-        let graph = Graph::try_from(BufReader::new(test));
-        assert!(graph.is_err())
     }
 
     #[test]
@@ -687,9 +696,8 @@ mod tests {
         graph.add_edge((3, 7));
     }
 
-    //TODO: Test neu machen
-    //#[test]
-    /*fn test_remove_node() {
+    #[test]
+    fn test_remove_node() {
         let mut graph = Graph::new_with_edges(
             6,
             vec![
@@ -702,8 +710,8 @@ mod tests {
             ],
         );
         graph.remove_node(3);
-        assert_eq!(graph.nodes, [0, 0, 0, 1, 0, 0])
-    }*/
+        assert_eq!(graph.nodes, 6)
+    }
     #[test]
     fn test_remove_edge() {
         let mut graph = Graph::new_with_edges(
@@ -718,16 +726,7 @@ mod tests {
             ],
         );
         graph.remove_edge((0, 3));
-        assert_eq!(
-            graph.edges,
-            vec![
-                [2].to_vec(),
-                [4, 2].to_vec(),
-                [0, 1].to_vec(),
-                [].to_vec(),
-                [1].to_vec(),
-                [].to_vec()
-            ]
-        );
+        assert_eq!(graph.edges_deleted[0].bitvec, bitvec![1, 0]);
+        assert_eq!(graph.edges_deleted[3].bitvec, bitvec![1]);
     }
 }

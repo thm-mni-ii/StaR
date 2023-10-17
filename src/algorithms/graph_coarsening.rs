@@ -130,7 +130,7 @@ impl<'b> CloudPartition<'b> {
     fn visit_small_cloud(
         &mut self,
         irrelevant_edges: &mut [FastBitvec],
-        visited_big_clouds: &mut FastBitvec,
+        visited_big_clouds: &FastBitvec,
         n: usize,
     ) {
         for node in self.cloud(n) {
@@ -645,14 +645,13 @@ mod tests {
         );
 
         /*let subgraphs: Vec<Vec<usize>> = cloud_part
-        .start
-        .iter_1()
-        .map(|n| cloud_part.cloud(*n))
-        .collect();*/
+            .start
+            .iter_1()
+            .map(|n| cloud_part.cloud(n))
+            .collect();
 
-        //let cloud_p_dot = dot_graph(&graph, &subgraphs);
-        //fs::write("./cloud_part.dot", cloud_p_dot).unwrap();
-
+        let cloud_p_dot = dot_graph(&graph, &subgraphs);
+        fs::write("./cloud_part.dot", cloud_p_dot).unwrap();*/
         //let f = F::new(&cloud_part, true);
 
         /*let mut big_nodes = Vec::new();
