@@ -141,3 +141,5 @@ tests
 *.data
 *.data.old
 flamegraph.svg
+.DS_Store
+*.csv

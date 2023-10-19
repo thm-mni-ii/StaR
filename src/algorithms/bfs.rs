@@ -31,9 +31,9 @@ impl<'a> Iterator for StandardBFS<'a> {
         let neighbors = self.graph.neighbors(temp);
 
         for n in neighbors {
-            if !self.visited.get(n) {
-                self.visited.set(n, true);
-                self.queue.push_back(n);
+            if !self.visited.get(*n) {
+                self.visited.set(*n, true);
+                self.queue.push_back(*n);
             }
         }
 
@@ -112,10 +112,10 @@ impl<'a> Iterator for ChoiceDictBFS<'a> {
         {
             self.node_with_neighbors_left = Some(node);
             for neighbor in self.graph.neighbors(node) {
-                if self.colors.get(neighbor) == 0 {
-                    self.colors.set(neighbor);
-                    self.colors_2.set(neighbor);
-                    ret = Some(neighbor);
+                if self.colors.get(*neighbor) == 0 {
+                    self.colors.set(*neighbor);
+                    self.colors_2.set(*neighbor);
+                    ret = Some(*neighbor);
                     break;
                 }
             }

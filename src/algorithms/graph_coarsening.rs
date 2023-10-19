@@ -209,11 +209,6 @@ impl<'b> CloudPartition<'b> {
                 subgraph.iter().for_each(|n| self.small.set(*n, true));
             }
         }
-        println!("finished cloud part I");
-        println!(
-            "small: {}",
-            self.start.iter_1().filter(|n| self.small.get(*n)).count()
-        );
         self.construct_critical_leaf_bridge();
     }
 }
@@ -566,10 +561,15 @@ impl<'a> F<'a> {
     }*/
 }
 
-#[cfg(test)]
+/*#[cfg(test)]
 mod tests {
 
-    use std::{fs::File, io::BufReader};
+    use std::{
+        fs::{self, File, OpenOptions},
+        io::{BufReader, Write},
+    };
+
+    use cpu_time::ProcessTime;
 
     use super::*;
     //use crate::tools::graph_visualizer::*;
@@ -599,7 +599,7 @@ mod tests {
                 [11, 16].to_vec(),
             ],
         );*/
-        let g = File::open("./tests/planar_embedding1000000.pg").unwrap();
+        let g = File::open("./tests/tiger_map_8states_filtered_6lvls.pg").unwrap();
         let buf_read = BufReader::new(g);
 
         let graph = Graph::try_from(buf_read).unwrap();
@@ -608,15 +608,27 @@ mod tests {
         //let g_dot = dot_graph(&graph, &[]);
         //println!("dot string generated");
         //fs::write("./g.dot", g_dot).unwrap();
+        println!("start cloud part");
 
+        let start = ProcessTime::now();
         let cloud_part = CloudPartition::new(&graph);
-        println!("cloud part generated");
+        let end = start.elapsed();
+
+        println!("cloud part generated, took {:?}", end);
         println!(
             "big: {}",
             cloud_part
                 .start
                 .iter_1()
                 .filter(|n| cloud_part.big.get(*n))
+                .count()
+        );
+        println!(
+            "small: {}",
+            cloud_part
+                .start
+                .iter_1()
+                .filter(|n| cloud_part.small.get(*n))
                 .count()
         );
         println!(
@@ -641,6 +653,21 @@ mod tests {
                 .start
                 .iter_1()
                 .filter(|i| cloud_part.bridge.get(*i))
+                .count()
+        );
+
+        println!(
+            "{}",
+            StandardBFS::new(&graph, 0, &mut FastBitvec::new(graph.nodes)).count()
+        );
+        println!(
+            "{}",
+            cloud_part
+                .small
+                .iter_1()
+                .filter(|n| !cloud_part.critical.get(*n)
+                    && !cloud_part.bridge.get(*n)
+                    && !cloud_part.leaf.get(*n))
                 .count()
         );
 
@@ -691,15 +718,67 @@ mod tests {
         );*/
     }
 
-    /*#[test]
-    pub fn test_choice_dict() {
-        let mut choice_dict = ChoiceDict::new(1000);
-        for i in 0..96 {
-            choice_dict.set(i);
-        }
+    #[test]
+    fn test_all() {
+        fs::write("./results.csv", "nodes;time;big;small;critical;bridge;leaf").unwrap();
 
-        assert_eq!(choice_dict.get(999), 0);
-        choice_dict.set(999);
-        assert_eq!(choice_dict.get(999), 1);
-    }*/
-}
+        for file in fs::read_dir("./tests").expect("no such directory") {
+            let f = File::open(format!(
+                "./tests/{}",
+                file.unwrap().file_name().to_str().unwrap()
+            ))
+            .expect("file not found");
+            let buf_read = BufReader::new(f);
+            let graph = Graph::try_from(buf_read).unwrap();
+
+            let start = ProcessTime::now();
+            let cloud_part = CloudPartition::new(&graph);
+            let end = start.elapsed();
+
+            let big = cloud_part
+                .start
+                .iter_1()
+                .filter(|n| cloud_part.big.get(*n))
+                .count();
+
+            let critical = cloud_part
+                .start
+                .iter_1()
+                .filter(|i| cloud_part.critical.get(*i))
+                .count();
+
+            let bridge = cloud_part
+                .start
+                .iter_1()
+                .filter(|i| cloud_part.bridge.get(*i))
+                .count();
+
+            let leaf = cloud_part
+                .start
+                .iter_1()
+                .filter(|i| cloud_part.leaf.get(*i))
+                .count();
+
+            let small = cloud_part
+                .start
+                .iter_1()
+                .filter(|i| cloud_part.small.get(*i))
+                .count();
+
+            let mut res = OpenOptions::new()
+                .write(true)
+                .append(true)
+                .open("./results.csv")
+                .unwrap();
+
+            res.write_all(
+                format!(
+                    "\n{};{:?};{};{};{};{};{}",
+                    graph.nodes, end, big, small, critical, bridge, leaf,
+                )
+                .as_bytes(),
+            )
+            .expect("write failed");
+        }
+    }
+}*/
