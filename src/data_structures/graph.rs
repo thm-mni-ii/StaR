@@ -1,5 +1,5 @@
 use core::panic;
-use std::io::{BufRead, BufReader, ErrorKind, Read};
+use std::io::{BufRead, BufReader, Error, ErrorKind, Read};
 
 use super::bitvec::FastBitvec;
 
@@ -305,41 +305,31 @@ impl<U: Read> TryFrom<BufReader<U>> for Graph {
     /// ```
 
     fn try_from(reader: BufReader<U>) -> Result<Self, Self::Error> {
-        let mut graph: Option<Graph> = None;
-        let mut order: Option<usize> = None;
-        for line in reader.lines() {
+        let mut lines = reader.lines();
+        let first_line = lines
+            .next()
+            .unwrap_or(Err(Error::new(ErrorKind::Other, "Empty file found")))?;
+        let order = match parse_order(first_line.as_str()) {
+            Ok(order) => Some(order),
+            Err(_) => {
+                return Err(std::io::Error::new(
+                    ErrorKind::Other,
+                    "Invalid order of graph",
+                ))
+            }
+        };
+
+        let mut graph = Graph::new_with_nodes(order.unwrap());
+
+        for line in lines.skip(1) {
             let line = line?;
             let elements: Vec<_> = line.split_whitespace().collect();
-            match elements[0] {
-                "c" => {
-                    // who cares about comments..
-                }
-                "p" => {
-                    order = Some(parse_order(&elements)?);
-                    graph = Some(Graph::new_with_nodes(order.unwrap()));
-                }
-                _ => match graph.as_mut() {
-                    Some(graph) => {
-                        let u = parse_vertex(elements[0], order.unwrap())?;
-                        let v = parse_vertex(elements[1], order.unwrap())?;
-                        graph.add_edge((u, v));
-                    }
-                    None => {
-                        return Err(std::io::Error::new(
-                            ErrorKind::Other,
-                            "Edges encountered before graph creation",
-                        ));
-                    }
-                },
-            };
+            let u = parse_vertex(elements[0], order.unwrap())?;
+            let v = parse_vertex(elements[1], order.unwrap())?;
+            graph.add_edge((u, v));
         }
-        match graph {
-            Some(graph) => Ok(graph),
-            None => Err(std::io::Error::new(
-                ErrorKind::Other,
-                "No graph created during parsing",
-            )),
-        }
+
+        Ok(graph)
     }
 }
 
@@ -362,14 +352,8 @@ fn parse_vertex(v: &str, order: usize) -> Result<usize, std::io::Error> {
     }
 }
 
-fn parse_order(elements: &[&str]) -> Result<usize, std::io::Error> {
-    if elements.len() < 3 {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::InvalidInput,
-            "Invalid line received starting with p",
-        ));
-    }
-    match elements[1].parse::<usize>() {
+fn parse_order(element: &str) -> Result<usize, std::io::Error> {
+    match element.parse::<usize>() {
         Ok(order) => Ok(order),
         Err(_) => Err(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,

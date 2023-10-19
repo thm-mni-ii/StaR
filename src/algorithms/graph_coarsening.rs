@@ -561,7 +561,7 @@ impl<'a> F<'a> {
     }*/
 }
 
-/*#[cfg(test)]
+#[cfg(test)]
 mod tests {
 
     use std::{
@@ -599,7 +599,7 @@ mod tests {
                 [11, 16].to_vec(),
             ],
         );*/
-        let g = File::open("./tests/tiger_map_8states_filtered_6lvls.pg").unwrap();
+        let g = File::open("./tests/planar_embedding1000000.pg").unwrap();
         let buf_read = BufReader::new(g);
 
         let graph = Graph::try_from(buf_read).unwrap();
@@ -781,4 +781,4 @@ mod tests {
             .expect("write failed");
         }
     }
-}*/
+}
