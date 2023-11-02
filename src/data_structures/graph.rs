@@ -8,11 +8,11 @@ type NodeType = usize;
 #[derive(Debug, PartialEq, Clone, Eq)]
 /// A basic graph data structure consisting of a vector of nodes and a vector of edges.
 pub struct Graph {
-    pub deleted: FastBitvec,
+    pub deleted: FastBitvec, //O(n) bits
     //pub edges_deleted: Vec<FastBitvec>,
-    pub nodes: usize, //0: valid entry, 1: invalid entry (deleted)
-    pub edges: Vec<Vec<usize>>,
-    pub back_edges: Vec<Vec<usize>>,
+    pub nodes: usize, //0: valid entry, 1: invalid entry (deleted) O(1) Bits
+    pub edges: Vec<Vec<usize>>, // O(n * (n - 1)) = O(n^2) Bits
+    pub back_edges: Vec<Vec<usize>>, // O(n * (n - 1)) = O(n^2) Bits
 }
 
 impl Default for Graph {
@@ -270,6 +270,25 @@ impl Graph {
             .find(|(i, _)| self.edges[edge.1][*i] == edge.0)
             .unwrap()
             .0;
+
+        let len_0 = self.edges[edge.0].len();
+        let last_edge_0 = self.edges[edge.0][len_0 - 1];
+        let edge_0_in_last = self.edges[last_edge_0]
+            .iter()
+            .enumerate()
+            .find(|(i, _)| self.edges[last_edge_0][*i] == edge.0)
+            .unwrap()
+            .0;
+        self.back_edges[last_edge_0][edge_0_in_last] = i;
+        let len_1 = self.edges[edge.1].len();
+        let last_edge_1 = self.edges[edge.1][len_1 - 1];
+        let edge_1_in_last = self.edges[last_edge_1]
+            .iter()
+            .enumerate()
+            .find(|(i, _)| self.edges[last_edge_1][*i] == edge.1)
+            .unwrap()
+            .0;
+        self.back_edges[last_edge_1][edge_1_in_last] = j;
 
         self.edges[edge.0].swap_remove(i);
         self.back_edges[edge.0].swap_remove(i);

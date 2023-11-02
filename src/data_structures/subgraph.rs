@@ -1,4 +1,3 @@
-use crate::algorithms::bfs::GraphLike;
 use core::panic;
 
 use super::{bitvec::FastBitvec, graph::Graph};
@@ -9,74 +8,6 @@ pub struct Subgraph<'a> {
     pub graph: &'a Graph,
     pub subset: FastBitvec,
     pub subset_edges: Vec<FastBitvec>,
-}
-
-impl GraphLike for Subgraph<'_> {
-    /// returns the neighbors of a node in the subgraph. Panics if the node is not part of the subgraph
-    ///
-    /// # Example
-    /// ```
-    /// use star::data_structures::{choice_dict::ChoiceDict, graph::Graph};
-    /// use star::data_structures::subgraph::Subgraph;
-    /// let graph = Graph::new_with_edges(
-    ///     6,
-    ///     vec![
-    ///         [3, 2].to_vec(),
-    ///         [4, 2].to_vec(),
-    ///         [0, 1].to_vec(),
-    ///         [0].to_vec(),
-    ///         [1].to_vec(),
-    ///         [].to_vec(),
-    ///     ],
-    /// );
-    ///
-    ///
-    /// let mut subset = ChoiceDict::new(graph.nodes.len());
-    /// let mut sub = Subgraph::new(&graph, subset);
-    /// sub.add_to_subgraph(3);
-    /// sub.neighbors(3);
-    /// ```
-    fn neighbors(&self, node: usize) -> Vec<usize> {
-        if !self.subset.get(node) {
-            panic!("node {} is not part of the subgraph", node);
-        }
-
-        self.graph
-            .neighbors(node)
-            .iter()
-            .enumerate()
-            .filter(|(i, n)| self.subset.get(**n) && self.subset_edges[node].get(*i))
-            .map(|(_, n)| *n)
-            .collect()
-    }
-
-    /// returns the nodes of the subgraph
-    ///
-    /// /// # Example
-    /// ```
-    /// use star::data_structures::{choice_dict::ChoiceDict, graph::Graph};
-    /// use star::data_structures::subgraph::Subgraph;
-    /// let graph = Graph::new_with_edges(
-    ///     6,
-    ///     vec![
-    ///         [3, 2].to_vec(),
-    ///         [4, 2].to_vec(),
-    ///         [0, 1].to_vec(),
-    ///         [0].to_vec(),
-    ///         [1].to_vec(),
-    ///         [].to_vec(),
-    ///     ],
-    /// );
-    ///
-    ///
-    /// let mut subset = ChoiceDict::new(graph.nodes.len());
-    /// let mut sub = Subgraph::new(&graph, subset);
-    /// sub.add_to_subgraph(3);
-    /// sub.get_nodes();
-    /// ```
-    fn get_nodes(&self) -> Vec<usize> {
-        self.subset.iter_1().collect()
-    }
 }
 
 impl<'a> Subgraph<'a> {
@@ -107,10 +38,10 @@ impl<'a> Subgraph<'a> {
     /// let sub = Subgraph::new(&graph, subset);
     /// ```
     pub fn new(graph: &'a Graph, subset: Vec<usize>) -> Self {
-        let mut subset_vec = FastBitvec::new(graph.nodes.len());
+        let mut subset_vec = FastBitvec::new(graph.nodes);
         subset.iter().for_each(|n| subset_vec.set(*n, true));
         let mut subset_edges = Vec::new();
-        for i in 0..graph.nodes.len() {
+        for i in 0..graph.nodes {
             let neighbors = graph.neighbors(i);
             subset_edges.push(FastBitvec::new(neighbors.len()));
             if subset_vec.get(i) {
@@ -126,6 +57,44 @@ impl<'a> Subgraph<'a> {
             subset: subset_vec,
             subset_edges,
         }
+    }
+
+    /// returns the neighbors of a node in the subgraph. Panics if the node is not part of the subgraph
+    ///
+    /// # Example
+    /// ```
+    /// use star::data_structures::{choice_dict::ChoiceDict, graph::Graph};
+    /// use star::data_structures::subgraph::Subgraph;
+    /// let graph = Graph::new_with_edges(
+    ///     6,
+    ///     vec![
+    ///         [3, 2].to_vec(),
+    ///         [4, 2].to_vec(),
+    ///         [0, 1].to_vec(),
+    ///         [0].to_vec(),
+    ///         [1].to_vec(),
+    ///         [].to_vec(),
+    ///     ],
+    /// );
+    ///
+    ///
+    /// let mut subset = ChoiceDict::new(graph.nodes.len());
+    /// let mut sub = Subgraph::new(&graph, subset);
+    /// sub.add_to_subgraph(3);
+    /// sub.neighbors(3);
+    /// ```
+    pub fn neighbors(&self, node: usize) -> Vec<usize> {
+        if !self.subset.get(node) {
+            panic!("node {} is not part of the subgraph", node);
+        }
+
+        self.graph
+            .neighbors(node)
+            .iter()
+            .enumerate()
+            .filter(|(i, n)| self.subset.get(**n) && self.subset_edges[node].get(*i))
+            .map(|(_, n)| *n)
+            .collect()
     }
 
     /// adds a node to the Subgraph. Panics if the node is not part of the original graph or has been deleted
@@ -152,10 +121,10 @@ impl<'a> Subgraph<'a> {
     /// sub.add_to_subgraph(3);
     /// ```
     pub fn add_to_subgraph(&mut self, node: usize) {
-        if node >= self.graph.nodes.len() {
+        if node >= self.graph.nodes {
             panic!("node {} does not exist", node)
         }
-        if self.graph.nodes[node] == 1 {
+        if self.graph.deleted.get(node) {
             panic!("node {} has been deleted", node)
         }
 
@@ -203,7 +172,7 @@ impl<'a> Subgraph<'a> {
     /// sub.remove_from_subgraph(3);
     /// ```
     pub fn remove_from_subgraph(&mut self, node: usize) {
-        if node >= self.graph.nodes.len() {
+        if node > self.graph.nodes {
             panic!("node {} does not exist", node)
         }
 
@@ -259,7 +228,7 @@ impl<'a> Subgraph<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{algorithms::bfs::GraphLike, data_structures::graph::Graph};
+    use crate::data_structures::graph::Graph;
 
     use super::Subgraph;
 
@@ -282,7 +251,7 @@ mod tests {
         let sub = Subgraph::new(&graph, subset);
 
         assert_eq!(sub.graph, &graph);
-        assert_eq!(sub.get_nodes(), vec![0, 3, 4])
+        assert_eq!(sub.subset.iter_1().collect::<Vec<usize>>(), vec![0, 3, 4])
     }
 
     #[test]
@@ -305,7 +274,10 @@ mod tests {
 
         sub.add_to_subgraph(1);
 
-        assert_eq!(sub.get_nodes(), vec![0, 1, 3, 4])
+        assert_eq!(
+            sub.subset.iter_1().collect::<Vec<usize>>(),
+            vec![0, 1, 3, 4]
+        )
     }
 
     #[test]
@@ -328,7 +300,7 @@ mod tests {
 
         sub.remove_from_subgraph(3);
 
-        assert_eq!(sub.get_nodes(), vec![0, 4])
+        assert_eq!(sub.subset.iter_1().collect::<Vec<usize>>(), vec![0, 4])
     }
 
     #[test]
@@ -370,7 +342,7 @@ mod tests {
 
         let sub = Subgraph::new(&graph, subset);
 
-        assert_eq!(sub.get_nodes(), vec![0, 3, 4])
+        assert_eq!(sub.subset.iter_1().collect::<Vec<usize>>(), vec![0, 3, 4])
     }
 
     #[test]

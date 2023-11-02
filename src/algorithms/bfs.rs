@@ -173,8 +173,12 @@ impl<'a> ChoiceDictBFS<'a> {
 
 #[cfg(test)]
 mod tests {
+    use crate::{
+        algorithms::bfs::{ChoiceDictBFS, StandardBFS},
+        data_structures::{bitvec::FastBitvec, graph::Graph},
+    };
 
-    /*#[test]
+    #[test]
     fn test_whole() {
         let graph = Graph::new_with_edges(
             6,
@@ -189,7 +193,7 @@ mod tests {
         );
 
         assert_eq!(
-            StandardBFS::new(&graph, 0).collect::<Vec<usize>>(),
+            StandardBFS::new(&graph, 0, &mut FastBitvec::new(graph.nodes)).collect::<Vec<usize>>(),
             [0, 3, 2, 1, 4]
         );
         assert_eq!(
@@ -199,7 +203,7 @@ mod tests {
     }
 
     #[test]
-    fn test_whole_preprocess_other_start() {
+    fn test_whole_other_start() {
         let graph = Graph::new_with_edges(
             6,
             vec![
@@ -213,12 +217,12 @@ mod tests {
         );
 
         assert_eq!(
-            StandardBFS::new(&graph, 2).collect::<Vec<usize>>(),
+            StandardBFS::new(&graph, 2, &mut FastBitvec::new(graph.nodes)).collect::<Vec<usize>>(),
             [2, 0, 1, 3, 4]
         );
         assert_eq!(
             ChoiceDictBFS::new(&graph, 2).collect::<Vec<usize>>(),
             [2, 0, 1, 3, 4]
         );
-    }*/
+    }
 }

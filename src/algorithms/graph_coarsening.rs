@@ -1,6 +1,6 @@
 use core::panic;
 
-use crate::data_structures::{bitvec::FastBitvec, graph::Graph};
+use crate::data_structures::{bitvec::FastBitvec, graph::Graph, subgraph::Subgraph};
 
 use super::bfs::StandardBFS;
 
@@ -110,13 +110,7 @@ impl<'b> CloudPartition<'b> {
             visited_big_clouds.set(node, true);
         }
         for node in cloud {
-            for edge in self
-                .g
-                .neighbors(node)
-                .iter()
-                .enumerate()
-                .collect::<Vec<(usize, &usize)>>()
-            {
+            for edge in self.g.neighbors(node).iter().enumerate() {
                 if irrelevant_edges[node].get(edge.0) {
                     continue;
                 }
@@ -147,13 +141,7 @@ impl<'b> CloudPartition<'b> {
                 continue;
             }
             self.increase_node_level(node);
-            for edge in self
-                .g
-                .neighbors(node)
-                .iter()
-                .enumerate()
-                .collect::<Vec<(usize, &usize)>>()
-            {
+            for edge in self.g.neighbors(node).iter().enumerate() {
                 if irrelevant_edges[node].get(edge.0) {
                     continue;
                 }
@@ -187,11 +175,14 @@ impl<'b> CloudPartition<'b> {
     }
 
     fn cloud_partition<'a>(&mut self, graph: &'a Graph, visited: &'a mut FastBitvec) {
+        let log = (graph.nodes as f32).log2() as usize;
         while let Some(node) = visited.choice_0() {
-            //println!("node: {}", node);
+            if graph.deleted.get(node) {
+                visited.set(node, true);
+                continue;
+            }
             self.start.set(node, true);
             let mut subgraph = Vec::new();
-            let log = (graph.nodes as f32).log2() as usize;
             let mut bfs_visited = FastBitvec::new(graph.nodes);
 
             StandardBFS::new(&self.g_1, node, &mut bfs_visited)
@@ -202,8 +193,6 @@ impl<'b> CloudPartition<'b> {
                     visited.set(n, true);
                     subgraph.push(n);
                 });
-
-            //println!("subgraph: {:?}", subgraph.len());
 
             if subgraph.len() >= log {
                 subgraph.iter().for_each(|n| {
@@ -256,18 +245,15 @@ impl<'a> F<'a> {
         f
     }
 
-    /*pub fn expand(&self, v: usize) -> Subgraph<'a> {
+    pub fn expand(&self, v: usize) -> Subgraph<'a> {
         if self.simplified {
-            return match self.cloud_part.r#type(self.node_to_cloud[v]) {
-                CloudType::Big | CloudType::Critical | CloudType::Bridge => Subgraph::new(
-                    self.cloud_part.g,
-                    self.cloud_part.cloud(self.node_to_cloud[v]),
-                ),
-                CloudType::Leaf => self.expand_leaf(v),
-                _ => panic!("something went wrong constructing bridge, leaf and critical"),
-            };
+            return Subgraph::new(
+                self.cloud_part.g,
+                self.cloud_part
+                    .cloud(self.node_to_cloud[v], &mut FastBitvec::new(self.f.nodes)),
+            );
         }
-        match self.cloud_part.r#type(self.node_to_cloud[v]) {
+        /*match self.cloud_part.cloud_type(self.node_to_cloud[v]) {
             CloudType::Big | CloudType::Critical => Subgraph::new(
                 self.cloud_part.g,
                 self.cloud_part.cloud(self.node_to_cloud[v]),
@@ -275,10 +261,11 @@ impl<'a> F<'a> {
             CloudType::Leaf => self.expand_leaf(v),
             CloudType::Bridge => self.expand_bridge(v),
             _ => panic!("something went wrong constructing bridge, leaf and critical"),
-        }
+        }*/
+        todo!()
     }
 
-    fn expand_leaf(&self, v: usize) -> Subgraph<'a> {
+    /*fn expand_leaf(&self, v: usize) -> Subgraph<'a> {
         let mut g_leaf = Subgraph::new(
             self.cloud_part.g,
             self.cloud_part.cloud(self.node_to_cloud[v]),
@@ -574,15 +561,14 @@ mod tests {
     };
 
     use cpu_time::ProcessTime;
-
-    use crate::tools::graph_visualizer::dot_graph;
+    use rand::Rng;
 
     use super::*;
     //use crate::tools::graph_visualizer::*;
 
     #[test]
     pub fn test() {
-        /*let graph = crate::data_structures::graph::Graph::new_with_edges(
+        /*let mut graph = crate::data_structures::graph::Graph::new_with_edges(
             18,
             vec![
                 [1, 6].to_vec(),
@@ -605,10 +591,11 @@ mod tests {
                 [11, 16].to_vec(),
             ],
         );*/
-        let g = File::open("./tests/planar_embedding5000000.pg").unwrap();
+        let g = File::open("./tests/graphs/0e507a85-382e-46a9-8c9b-0243d5b9b3b5.pg").unwrap();
         let buf_read = BufReader::new(g);
 
         let graph = Graph::try_from(buf_read).unwrap();
+        //delete_arbitrary_amount_of_edges(&mut graph);
 
         //println!("Graph loaded");
         //let g_dot = dot_graph(&graph, &[]);
@@ -678,19 +665,19 @@ mod tests {
         );
 
         /*let subgraphs: Vec<Vec<usize>> = cloud_part
-        .start
-        .iter_1()
-        .map(|n| cloud_part.cloud(n, &mut FastBitvec::new(graph.nodes)))
-        .collect();*/
+            .start
+            .iter_1()
+            .map(|n| cloud_part.cloud(n, &mut FastBitvec::new(graph.nodes)))
+            .collect();
 
-        /*let cloud_p_dot = dot_graph(&graph, &subgraphs);
+        let cloud_p_dot = dot_graph(&graph, &subgraphs);
         let g_dash_dot = dot_graph(&cloud_part.g_1, &[]);
         fs::write("./g_dash.dot", g_dash_dot).unwrap();
         fs::write("./cloud_part.dot", cloud_p_dot).unwrap();*/
-        let start = ProcessTime::now();
-        let f = F::new(&cloud_part, true);
-        let end = start.elapsed();
-        println!("f generated, took {:?}", end);
+        //let start = ProcessTime::now();
+        //let f = F::new(&cloud_part, true);
+        //let end = start.elapsed();
+        //println!("f generated, took {:?}", end);
 
         /*let mut big_nodes = Vec::new();
         let mut critical_nodes = Vec::new();
@@ -731,16 +718,26 @@ mod tests {
 
     #[test]
     fn test_all() {
-        fs::write("./results.csv", "nodes;time;big;small;critical;bridge;leaf").unwrap();
+        fs::write(
+            "./results.csv",
+            "nodes;edges;Verhältnis Knoten-Kanten;time;big;small;small bereinigt;critical;bridge;leaf;Verhältnis big-small;Anteil Critical;Anteil Bridge;Anteil Leaf",
+        )
+        .unwrap();
 
-        for file in fs::read_dir("./tests").expect("no such directory") {
+        for file in fs::read_dir("./tests/graphs").expect("no such directory") {
             let f = File::open(format!(
-                "./tests/{}",
+                "./tests/graphs/{}",
                 file.unwrap().file_name().to_str().unwrap()
             ))
             .expect("file not found");
             let buf_read = BufReader::new(f);
-            let graph = Graph::try_from(buf_read).unwrap();
+            let mut graph = Graph::try_from(buf_read).unwrap();
+            if graph.nodes == 5_000_000 {
+                delete_arbitrary_amount_of_edges(&mut graph);
+            }
+            find_largest_connected_component(&mut graph);
+
+            let num_edges = graph.edges.iter().map(|n| n.len()).sum::<usize>() / 2;
 
             let start = ProcessTime::now();
             let cloud_part = CloudPartition::new(&graph);
@@ -784,12 +781,79 @@ mod tests {
 
             res.write_all(
                 format!(
-                    "\n{};{:?};{};{};{};{};{}",
-                    graph.nodes, end, big, small, critical, bridge, leaf,
+                    "\n{};{};{};{:?};{};{};{};{};{};{};{};{};{};{}",
+                    graph.nodes - graph.deleted.iter_1().count(),
+                    num_edges,
+                    num_edges as f32 / graph.nodes as f32,
+                    end,
+                    big,
+                    small,
+                    critical + bridge + leaf,
+                    critical,
+                    bridge,
+                    leaf,
+                    big as f32 / (critical + bridge + leaf) as f32,
+                    critical as f32 / (critical + bridge + leaf) as f32,
+                    bridge as f32 / (critical + bridge + leaf) as f32,
+                    leaf as f32 / (critical + bridge + leaf) as f32,
                 )
                 .as_bytes(),
             )
             .expect("write failed");
+        }
+    }
+
+    fn delete_arbitrary_amount_of_edges(g: &mut Graph) {
+        let n = rand::thread_rng().gen_range(0..10_000_000);
+        println!("n: {}", n);
+        for _ in 0..n {
+            let u = rand::thread_rng().gen_range(0..g.nodes);
+            if g.edges[u].is_empty() {
+                continue;
+            }
+            let v = rand::thread_rng().gen_range(0..g.edges[u].len());
+            g.remove_edge((u, g.edges[u][v]));
+        }
+
+        for n in 0..g.nodes {
+            if g.edges[n].is_empty() {
+                g.remove_node(n)
+            }
+        }
+    }
+
+    fn find_largest_connected_component(g: &mut Graph) {
+        let mut visited = FastBitvec::new(g.nodes);
+        let mut largest = 0_usize;
+        let mut index_largest = 0_usize;
+        let mut largest_component = FastBitvec::new(g.nodes);
+
+        while let Some(n) = visited.choice_0() {
+            if g.deleted.get(n) {
+                visited.set(n, true);
+                continue;
+            }
+            let mut bfs_visited = FastBitvec::new(g.nodes);
+            let len = StandardBFS::new(g, n, &mut bfs_visited)
+                .map(|v| {
+                    visited.set(v, true);
+                    v
+                })
+                .count();
+
+            if len > largest {
+                largest = len;
+                index_largest = n;
+            }
+        }
+
+        StandardBFS::new(g, index_largest, &mut FastBitvec::new(g.nodes))
+            .for_each(|n| largest_component.set(n, true));
+
+        for i in 0..g.nodes {
+            if !largest_component.get(i) && !g.deleted.get(i) {
+                g.remove_node(i);
+            }
         }
     }
 }
