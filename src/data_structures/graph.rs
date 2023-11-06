@@ -423,7 +423,7 @@ mod tests {
 
     #[test]
     fn test_graph_reader_successful() {
-        let test = "p 6 4\n0 3\n0 2\n1 4\n1 2".as_bytes();
+        let test = "6\n 4\n0 3\n0 2\n1 4\n1 2".as_bytes();
 
         let graph = Graph::try_from(BufReader::new(test));
         assert_eq!(
@@ -444,7 +444,7 @@ mod tests {
 
     #[test]
     fn test_graph_reader_node_too_big() {
-        let test = "p edge 6 4\ne 1 4\ne 1 3\ne 2 7\ne 2 3".as_bytes();
+        let test = "6\n 4\n1 4\n1 3\n2 7\n2 3".as_bytes();
 
         let graph = Graph::try_from(BufReader::new(test));
         assert!(graph.is_err())

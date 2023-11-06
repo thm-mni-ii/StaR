@@ -29,13 +29,7 @@ impl<'a> Subgraph<'a> {
     ///     ],
     /// );
     ///
-    ///
-    /// let mut subset = ChoiceDict::new(graph.nodes.len());
-    /// subset.set(0);
-    /// subset.set(3);
-    /// subset.set(4);
-    ///
-    /// let sub = Subgraph::new(&graph, subset);
+    /// let sub = Subgraph::new(&graph, vec![0, 3, 4]);
     /// ```
     pub fn new(graph: &'a Graph, subset: Vec<usize>) -> Self {
         let mut subset_vec = FastBitvec::new(graph.nodes);
@@ -78,8 +72,7 @@ impl<'a> Subgraph<'a> {
     /// );
     ///
     ///
-    /// let mut subset = ChoiceDict::new(graph.nodes.len());
-    /// let mut sub = Subgraph::new(&graph, subset);
+    /// let mut sub = Subgraph::new(&graph, Vec::new());
     /// sub.add_to_subgraph(3);
     /// sub.neighbors(3);
     /// ```
@@ -101,7 +94,7 @@ impl<'a> Subgraph<'a> {
     ///
     /// # Example
     /// ```
-    /// use star::data_structures::{choice_dict::ChoiceDict, graph::Graph};
+    /// use star::data_structures::{bitvec::FastBitvec, graph::Graph};
     /// use star::data_structures::subgraph::Subgraph;
     /// let graph = Graph::new_with_edges(
     ///     6,
@@ -116,8 +109,7 @@ impl<'a> Subgraph<'a> {
     /// );
     ///
     ///
-    /// let mut subset = ChoiceDict::new(graph.nodes.len());
-    /// let mut sub = Subgraph::new(&graph, subset);
+    /// let mut sub = Subgraph::new(&graph, Vec::new());
     /// sub.add_to_subgraph(3);
     /// ```
     pub fn add_to_subgraph(&mut self, node: usize) {
@@ -166,8 +158,7 @@ impl<'a> Subgraph<'a> {
     /// );
     ///
     ///
-    /// let mut subset = ChoiceDict::new(graph.nodes.len());
-    /// let mut sub = Subgraph::new(&graph, subset);
+    /// let mut sub = Subgraph::new(&graph, Vec::new());
     /// sub.add_to_subgraph(3);
     /// sub.remove_from_subgraph(3);
     /// ```
@@ -392,7 +383,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_add_to_subgraph_panic_deleted() {
-        let graph = Graph::new_with_edges(
+        let mut graph = Graph::new_with_edges(
             6,
             vec![
                 [3, 2].to_vec(),
@@ -403,6 +394,8 @@ mod tests {
                 [].to_vec(),
             ],
         );
+
+        graph.remove_node(2);
 
         let subset = vec![0, 3, 4];
 
