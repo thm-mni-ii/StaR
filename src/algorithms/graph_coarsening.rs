@@ -515,25 +515,16 @@ impl<'a> F<'a> {
     }
 }
 
-/*#[cfg(test)]
+#[cfg(test)]
 mod tests {
 
-    use std::{
-        fs::{self, File, OpenOptions},
-        io::{BufReader, Write},
-    };
+    use crate::{algorithms::graph_coarsening::CloudType, data_structures::graph::Graph};
 
-    use cpu_time::ProcessTime;
-    use rand::Rng;
-
-    use crate::tools::graph_visualizer::dot_graph;
-
-    use super::*;
-    //use crate::tools::graph_visualizer::*;
+    use super::{CloudPartition, F};
 
     #[test]
-    pub fn test() {
-        /*let graph = crate::data_structures::graph::Graph::new_with_edges(
+    fn test_cloud_partition() {
+        let graph = Graph::new_with_edges(
             18,
             vec![
                 [1, 6].to_vec(),
@@ -555,236 +546,180 @@ mod tests {
                 [10, 17].to_vec(),
                 [11, 16].to_vec(),
             ],
-        );*/
-        let g = File::open("./tests/graphs/planar_embedding1000000.pg").unwrap();
-        let buf_read = BufReader::new(g);
+        );
 
-        let graph = Graph::try_from(buf_read).unwrap();
-        //delete_arbitrary_amount_of_edges(&mut graph);
-
-        //println!("Graph loaded");
-        //let g_dot = dot_graph(&graph, &[]);
-        //println!("dot string generated");
-        //fs::write("./g.dot", g_dot).unwrap();
-        println!("start cloud part");
-
-        let start = ProcessTime::now();
         let cloud_part = CloudPartition::new(&graph);
-        let end = start.elapsed();
 
-        println!("cloud part generated, took {:?}", end);
-        println!(
-            "big: {}",
+        assert_eq!(cloud_part.start.iter_1().count(), 6);
+        assert_eq!(
+            cloud_part
+                .big
+                .iter_1()
+                .filter(|n| cloud_part.start.get(*n))
+                .count(),
+            4
+        );
+        assert_eq!(
+            cloud_part
+                .leaf
+                .iter_1()
+                .filter(|n| cloud_part.start.get(*n))
+                .count(),
+            2
+        );
+        assert_eq!(
             cloud_part
                 .start
                 .iter_1()
-                .filter(|n| cloud_part.big.get(*n))
+                .filter(|n| cloud_part.leaf.get(*n))
                 .count()
-        );
-        println!(
-            "small: {}",
+                + cloud_part
+                    .start
+                    .iter_1()
+                    .filter(|n| cloud_part.bridge.get(*n))
+                    .count()
+                + cloud_part
+                    .start
+                    .iter_1()
+                    .filter(|n| cloud_part.critical.get(*n))
+                    .count(),
             cloud_part
                 .start
                 .iter_1()
-                .filter(|n| cloud_part.small.get(*n))
+                .filter(|n| cloud_part.leaf.get(*n))
                 .count()
         );
-        println!(
-            "critical: {}",
-            cloud_part
-                .start
-                .iter_1()
-                .filter(|i| cloud_part.critical.get(*i))
-                .count()
-        );
-        println!(
-            "leaf: {}",
-            cloud_part
-                .start
-                .iter_1()
-                .filter(|i| cloud_part.leaf.get(*i))
-                .count()
-        );
-        println!(
-            "bridge: {}",
-            cloud_part
-                .start
-                .iter_1()
-                .filter(|i| cloud_part.bridge.get(*i))
-                .count()
-        );
-
-        println!(
-            "{}",
-            StandardBFS::new(&graph, 0, &mut FastBitvec::new(graph.nodes)).count()
-        );
-        println!(
-            "{}",
-            cloud_part
-                .small
-                .iter_1()
-                .filter(|n| !cloud_part.critical.get(*n)
-                    && !cloud_part.bridge.get(*n)
-                    && !cloud_part.leaf.get(*n))
-                .count()
-        );
-
-        /*let subgraphs: Vec<Vec<usize>> = cloud_part
-            .start
-            .iter_1()
-            .map(|n| cloud_part.cloud(n, &mut FastBitvec::new(graph.nodes)))
-            .collect();
-
-        let cloud_p_dot = dot_graph(&graph, &subgraphs);
-        let g_dash_dot = dot_graph(&cloud_part.g_1, &[]);
-        fs::write("./g_dash.dot", g_dash_dot).unwrap();
-        fs::write("./cloud_part.dot", cloud_p_dot).unwrap();*/
-        let f = F::new(&cloud_part);
-
-        //let f_dot = dot_graph(&f.f, &[]);
-        //fs::write("./f.dot", f_dot).unwrap();
-
-        println!("{:?}", f.expand(666));
     }
 
     #[test]
-    fn test_all() {
-        fs::write(
-            "./results.csv",
-            "nodes;edges;Verhältnis Knoten-Kanten;time;big;small;small bereinigt;critical;bridge;leaf;Verhältnis big-small;Anteil Critical;Anteil Bridge;Anteil Leaf",
-        )
-        .unwrap();
+    fn test_f() {
+        let graph = Graph::new_with_edges(
+            18,
+            vec![
+                [1, 6].to_vec(),
+                [0, 2, 7].to_vec(),
+                [1, 3, 8].to_vec(),
+                [2, 4, 9].to_vec(),
+                [3, 5, 10].to_vec(),
+                [4, 11].to_vec(),
+                [0, 7, 12].to_vec(),
+                [1, 6, 8, 13].to_vec(),
+                [2, 7, 9, 14].to_vec(),
+                [3, 8, 10, 15].to_vec(),
+                [4, 9, 11, 16].to_vec(),
+                [5, 10, 17].to_vec(),
+                [6, 13].to_vec(),
+                [7, 12, 14].to_vec(),
+                [8, 13].to_vec(),
+                [9].to_vec(),
+                [10, 17].to_vec(),
+                [11, 16].to_vec(),
+            ],
+        );
 
-        for file in fs::read_dir("./tests/graphs").expect("no such directory") {
-            let f = File::open(format!(
-                "./tests/graphs/{}",
-                file.unwrap().file_name().to_str().unwrap()
-            ))
-            .expect("file not found");
-            let buf_read = BufReader::new(f);
-            let mut graph = Graph::try_from(buf_read).unwrap();
-            if graph.nodes == 5_000_000 {
-                delete_arbitrary_amount_of_edges(&mut graph);
-            }
-            find_largest_connected_component(&mut graph);
+        let cloud_part = CloudPartition::new(&graph);
+        let f = F::new(&cloud_part);
 
-            let num_edges = graph.edges.iter().map(|n| n.len()).sum::<usize>() / 2;
-
-            let start = ProcessTime::now();
-            let cloud_part = CloudPartition::new(&graph);
-            let end = start.elapsed();
-
-            let big = cloud_part
-                .start
-                .iter_1()
-                .filter(|n| cloud_part.big.get(*n))
-                .count();
-
-            let critical = cloud_part
-                .start
-                .iter_1()
-                .filter(|i| cloud_part.critical.get(*i))
-                .count();
-
-            let bridge = cloud_part
-                .start
-                .iter_1()
-                .filter(|i| cloud_part.bridge.get(*i))
-                .count();
-
-            let leaf = cloud_part
-                .start
-                .iter_1()
-                .filter(|i| cloud_part.leaf.get(*i))
-                .count();
-
-            let small = cloud_part
-                .start
-                .iter_1()
-                .filter(|i| cloud_part.small.get(*i))
-                .count();
-
-            let mut res = OpenOptions::new()
-                .write(true)
-                .append(true)
-                .open("./results.csv")
-                .unwrap();
-
-            res.write_all(
-                format!(
-                    "\n{};{};{};{:?};{};{};{};{};{};{};{};{};{};{}",
-                    graph.nodes - graph.deleted.iter_1().count(),
-                    num_edges,
-                    num_edges as f32 / graph.nodes as f32,
-                    end,
-                    big,
-                    small,
-                    critical + bridge + leaf,
-                    critical,
-                    bridge,
-                    leaf,
-                    big as f32 / (critical + bridge + leaf) as f32,
-                    critical as f32 / (critical + bridge + leaf) as f32,
-                    bridge as f32 / (critical + bridge + leaf) as f32,
-                    leaf as f32 / (critical + bridge + leaf) as f32,
-                )
-                .as_bytes(),
-            )
-            .expect("write failed");
-        }
+        assert_eq!(f.f.nodes, cloud_part.start.iter_1().count());
     }
 
-    fn delete_arbitrary_amount_of_edges(g: &mut Graph) {
-        let n = rand::thread_rng().gen_range(0..10_000_000);
-        println!("n: {}", n);
-        for _ in 0..n {
-            let u = rand::thread_rng().gen_range(0..g.nodes);
-            if g.edges[u].is_empty() {
-                continue;
-            }
-            let v = rand::thread_rng().gen_range(0..g.edges[u].len());
-            g.remove_edge((u, g.edges[u][v]));
-        }
+    #[test]
+    fn test_cloud_type() {
+        let graph = Graph::new_with_edges(
+            18,
+            vec![
+                [1, 6].to_vec(),
+                [0, 2, 7].to_vec(),
+                [1, 3, 8].to_vec(),
+                [2, 4, 9].to_vec(),
+                [3, 5, 10].to_vec(),
+                [4, 11].to_vec(),
+                [0, 7, 12].to_vec(),
+                [1, 6, 8, 13].to_vec(),
+                [2, 7, 9, 14].to_vec(),
+                [3, 8, 10, 15].to_vec(),
+                [4, 9, 11, 16].to_vec(),
+                [5, 10, 17].to_vec(),
+                [6, 13].to_vec(),
+                [7, 12, 14].to_vec(),
+                [8, 13].to_vec(),
+                [9].to_vec(),
+                [10, 17].to_vec(),
+                [11, 16].to_vec(),
+            ],
+        );
 
-        for n in 0..g.nodes {
-            if g.edges[n].is_empty() {
-                g.remove_node(n)
-            }
-        }
+        let cloud_part = CloudPartition::new(&graph);
+
+        assert_eq!(cloud_part.cloud_type(0), CloudType::Big);
+        assert_eq!(cloud_part.cloud_type(12), CloudType::Big);
+        assert_eq!(cloud_part.cloud_type(16), CloudType::Leaf);
     }
 
-    fn find_largest_connected_component(g: &mut Graph) {
-        let mut visited = FastBitvec::new(g.nodes);
-        let mut largest = 0_usize;
-        let mut index_largest = 0_usize;
-        let mut largest_component = FastBitvec::new(g.nodes);
+    #[test]
+    fn test_cloud() {
+        let graph = Graph::new_with_edges(
+            18,
+            vec![
+                [1, 6].to_vec(),
+                [0, 2, 7].to_vec(),
+                [1, 3, 8].to_vec(),
+                [2, 4, 9].to_vec(),
+                [3, 5, 10].to_vec(),
+                [4, 11].to_vec(),
+                [0, 7, 12].to_vec(),
+                [1, 6, 8, 13].to_vec(),
+                [2, 7, 9, 14].to_vec(),
+                [3, 8, 10, 15].to_vec(),
+                [4, 9, 11, 16].to_vec(),
+                [5, 10, 17].to_vec(),
+                [6, 13].to_vec(),
+                [7, 12, 14].to_vec(),
+                [8, 13].to_vec(),
+                [9].to_vec(),
+                [10, 17].to_vec(),
+                [11, 16].to_vec(),
+            ],
+        );
 
-        while let Some(n) = visited.choice_0() {
-            if g.deleted.get(n) {
-                visited.set(n, true);
-                continue;
-            }
-            let mut bfs_visited = FastBitvec::new(g.nodes);
-            let len = StandardBFS::new(g, n, &mut bfs_visited)
-                .map(|v| {
-                    visited.set(v, true);
-                    v
-                })
-                .count();
+        let cloud_part = CloudPartition::new(&graph);
 
-            if len > largest {
-                largest = len;
-                index_largest = n;
-            }
-        }
-
-        StandardBFS::new(g, index_largest, &mut FastBitvec::new(g.nodes))
-            .for_each(|n| largest_component.set(n, true));
-
-        for i in 0..g.nodes {
-            if !largest_component.get(i) && !g.deleted.get(i) {
-                g.remove_node(i);
-            }
-        }
+        assert_eq!(cloud_part.cloud(0), vec![0, 1, 6, 2]);
+        assert_eq!(cloud_part.cloud(12), vec![12, 13, 7, 14]);
+        assert_eq!(cloud_part.cloud(3), vec![3, 9, 4, 8]);
+        assert_eq!(cloud_part.cloud(16), vec![16]);
     }
-}*/
+
+    #[test]
+    fn test_border() {
+        let graph = Graph::new_with_edges(
+            18,
+            vec![
+                [1, 6].to_vec(),
+                [0, 2, 7].to_vec(),
+                [1, 3, 8].to_vec(),
+                [2, 4, 9].to_vec(),
+                [3, 5, 10].to_vec(),
+                [4, 11].to_vec(),
+                [0, 7, 12].to_vec(),
+                [1, 6, 8, 13].to_vec(),
+                [2, 7, 9, 14].to_vec(),
+                [3, 8, 10, 15].to_vec(),
+                [4, 9, 11, 16].to_vec(),
+                [5, 10, 17].to_vec(),
+                [6, 13].to_vec(),
+                [7, 12, 14].to_vec(),
+                [8, 13].to_vec(),
+                [9].to_vec(),
+                [10, 17].to_vec(),
+                [11, 16].to_vec(),
+            ],
+        );
+
+        let cloud_part = CloudPartition::new(&graph);
+
+        assert!(!cloud_part.border(0, 1));
+        assert!(cloud_part.border(7, 6));
+        assert!(cloud_part.border(8, 7));
+    }
+}

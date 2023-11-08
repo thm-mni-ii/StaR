@@ -299,6 +299,26 @@ impl Graph {
         self.back_edges[edge.1].swap_remove(j);
     }
 
+    /**
+    Writes the graph to a file at the given path. For information on the output format please refer to the README.
+
+    # Example
+    ```
+
+    use star::data_structures::graph::Graph;
+    let mut graph = Graph::new_with_edges(
+        3,
+       vec![
+            [1, 2].to_vec(),
+            [0].to_vec(),
+             [0].to_vec()
+         ],
+    );
+
+    #[cfg(not(miri))]
+    graph.write_to_file("test.txt");
+    ```
+     */
     pub fn write_to_file(&self, path: &str) -> Result<(), Error> {
         let file = File::create(path)?;
         let mut writer = BufWriter::new(file);
@@ -322,7 +342,7 @@ impl Graph {
 impl<U: Read> TryFrom<BufReader<U>> for Graph {
     type Error = std::io::Error;
 
-    /// Reads a graph from a [.gr](https://pacechallenge.org/2019/vc/vc_format/) file and returns a Result containing either the parsed graph or an error.
+    /// Reads a graph from a file and returns a Result containing either the parsed graph or an error. For information on the input format please refer to the README.
     ///
     /// # Example
     /// ```
