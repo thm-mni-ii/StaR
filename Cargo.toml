@@ -7,7 +7,12 @@ edition = "2021"
 
 [dependencies]
 bitvec = "1"
+clap = { version = "4.3.0", features = ["derive"] }
+cpu-time = "1.0.0"
 
 [dev-dependencies]
 rand = "0.8.5"
-cpu-time = "1.0.0"
+
+[[bin]]
+name = "star-cli"
+path = "src/cli.rs"

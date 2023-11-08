@@ -17,7 +17,7 @@ pub enum CloudType {
 
 #[derive(Debug)]
 pub struct CloudPartition<'a> {
-    start: FastBitvec,
+    pub start: FastBitvec,
     big: FastBitvec,
     small: FastBitvec,
     leaf: FastBitvec,
@@ -363,7 +363,7 @@ impl<'b> CloudPartition<'b> {
 
 #[derive(Debug, Clone)]
 pub struct F<'a> {
-    f: Graph,
+    pub f: Graph,
     node_to_cloud: Vec<usize>,
     //TODO: Dieser Vec braucht bedeutend mehr Speicher als theoretisch nötig
     cloud_to_node: Vec<usize>,

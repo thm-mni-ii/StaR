@@ -1,5 +1,8 @@
 use core::panic;
-use std::io::{BufRead, BufReader, Error, ErrorKind, Read};
+use std::{
+    fs::File,
+    io::{BufRead, BufReader, BufWriter, Error, ErrorKind, Read, Write},
+};
 
 use super::bitvec::FastBitvec;
 
@@ -296,17 +299,24 @@ impl Graph {
         self.back_edges[edge.1].swap_remove(j);
     }
 
-    /*pub fn remove_edge_unchecked(&mut self, edge: (NodeType, NodeType)) {
-        self.back_edges[edge.0].remove(
-            self.edges[edge.0]
-                .iter()
-                .enumerate()
-                .find(|e| *e.1 == edge.1)
-                .map(|e| e.0)
-                .unwrap(),
-        );
-        self.edges[edge.0].retain(|e| edge.1 != *e);
-    }*/
+    pub fn write_to_file(&self, path: &str) -> Result<(), Error> {
+        let file = File::create(path)?;
+        let mut writer = BufWriter::new(file);
+
+        writer.write_all(format!("{}\n", self.nodes).as_bytes())?;
+
+        let num_edges = self.edges.iter().fold(0, |acc, e| acc + e.len());
+
+        writer.write_all(format!("{}", num_edges / 2).as_bytes())?;
+
+        for (i, e) in self.edges.iter().enumerate() {
+            for n in e {
+                writer.write_all(format!("\n{} {}", i, n).as_bytes())?;
+            }
+        }
+
+        Ok(())
+    }
 }
 
 impl<U: Read> TryFrom<BufReader<U>> for Graph {

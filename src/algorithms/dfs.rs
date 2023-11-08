@@ -1,6 +1,6 @@
 use crate::data_structures::graph::Graph;
 
-/// An iterator iterating over nodes of a graph in depth-first-search order as described in https://drops.dagstuhl.de/opus/volltexte/2015/4921/pdf/21.pdf.
+/// An iterator iterating over nodes of a graph in depth-first-search order as described in <https://drops.dagstuhl.de/opus/volltexte/2015/4921/pdf/21.pdf>.
 pub struct DFS<'a> {
     start: usize,
     start_needed: bool,
