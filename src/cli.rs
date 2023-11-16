@@ -6,7 +6,7 @@ use std::{
 use clap::{arg, Command};
 use cpu_time::ProcessTime;
 use star::{
-    algorithms::graph_coarsening::{CloudPartition, CloudType, F},
+    algorithms::graph_coarsening::{CloudPartition, CloudType, GraphCoarsening},
     data_structures::graph::Graph,
     tools::graph_visualizer::dot_graph,
 };
@@ -72,7 +72,7 @@ fn main() {
 
             if !cli.get_flag("partition") {
                 let start = ProcessTime::now();
-                f = Some(F::new(&cloud_partition));
+                f = Some(GraphCoarsening::new(&cloud_partition));
                 let time_f = start.elapsed();
 
                 println!();

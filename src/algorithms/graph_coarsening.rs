@@ -227,6 +227,7 @@ impl<'b> CloudPartition<'b> {
     }
 
     fn construct_critical_leaf_bridge(&mut self) {
+        let mut visited_big_clouds = FastBitvec::new(self.g.nodes);
         let mut irrelevant_edges: Vec<FastBitvec> = self
             .g
             .edges
@@ -239,11 +240,7 @@ impl<'b> CloudPartition<'b> {
             .filter(|n| self.big.get(*n))
             .collect::<Vec<usize>>();
         for node in big_nodes {
-            self.visit_big_cloud(
-                &mut FastBitvec::new(self.g.nodes),
-                &mut irrelevant_edges,
-                node,
-            );
+            self.visit_big_cloud(&mut visited_big_clouds, &mut irrelevant_edges, node);
         }
     }
 
@@ -256,8 +253,8 @@ impl<'b> CloudPartition<'b> {
         let mut bitvec_for_small = FastBitvec::new(self.g.nodes);
         let cloud = self.cloud_with_bitvec(n, &mut bitvec_for_small);
 
-        for node in cloud.clone() {
-            visited_big_clouds.set(node, true);
+        for node in cloud.iter() {
+            visited_big_clouds.set(*node, true);
         }
         for node in cloud {
             for edge in self.g.neighbors(node).iter().enumerate() {
@@ -288,7 +285,7 @@ impl<'b> CloudPartition<'b> {
     ) {
         for node in self.cloud_with_bitvec(n, visited) {
             if self.critical.get(node) {
-                continue;
+                return;
             }
             self.increase_node_level(node);
             for edge in self.g.neighbors(node).iter().enumerate() {
@@ -362,18 +359,17 @@ impl<'b> CloudPartition<'b> {
 }
 
 #[derive(Debug, Clone)]
-pub struct F<'a> {
+pub struct GraphCoarsening<'a> {
     pub f: Graph,
     node_to_cloud: Vec<usize>,
-    //TODO: Dieser Vec braucht bedeutend mehr Speicher als theoretisch nötig
     cloud_to_node: Vec<usize>,
     weights: Vec<usize>,
     cloud_part: &'a CloudPartition<'a>,
 }
 
-impl<'a> F<'a> {
+impl<'a> GraphCoarsening<'a> {
     fn new_empty(cloud_part: &'a CloudPartition) -> Self {
-        F {
+        GraphCoarsening {
             f: Graph::new(),
             node_to_cloud: Vec::new(),
             cloud_to_node: vec![usize::MAX; cloud_part.g.nodes],
@@ -421,8 +417,8 @@ impl<'a> F<'a> {
     */
     pub fn new(cloud_part: &'a CloudPartition) -> Self {
         let mut f = Self::new_empty(cloud_part);
-        f.add_big_and_critical();
-        f.add_edges_big_critical();
+        f.add_nodes();
+        f.add_edges();
         f
     }
 
@@ -465,13 +461,10 @@ impl<'a> F<'a> {
     ```
     */
     pub fn expand(&self, v: usize) -> Vec<usize> {
-        self.cloud_part.cloud_with_bitvec(
-            self.node_to_cloud[v],
-            &mut FastBitvec::new(self.cloud_part.g.nodes),
-        )
+        self.cloud_part.cloud(self.node_to_cloud[v])
     }
 
-    fn add_big_and_critical(&mut self) {
+    fn add_nodes(&mut self) {
         let mut cloud_bitvec = FastBitvec::new(self.cloud_part.g.nodes);
 
         self.cloud_part.start.iter_1().for_each(|n| {
@@ -484,7 +477,7 @@ impl<'a> F<'a> {
         });
     }
 
-    fn add_edges_big_critical(&mut self) {
+    fn add_edges(&mut self) {
         let mut completed = FastBitvec::new(self.cloud_part.g.nodes);
         let mut discovered = FastBitvec::new(self.cloud_part.g.nodes);
         let mut cloud_bitvec = FastBitvec::new(self.cloud_part.g.nodes);
@@ -495,10 +488,7 @@ impl<'a> F<'a> {
             for n in cloud.iter() {
                 for neighbor in self.cloud_part.g.neighbors(*n) {
                     if !discovered.get(*neighbor) && self.cloud_part.border(*n, *neighbor) {
-                        let c_dash = self.cloud_part.cloud_with_bitvec(
-                            *neighbor,
-                            &mut FastBitvec::new(self.cloud_part.g.nodes),
-                        );
+                        let c_dash = self.cloud_part.cloud(*neighbor);
 
                         c_dash.iter().for_each(|n| discovered.set(*n, true));
 
@@ -520,7 +510,7 @@ mod tests {
 
     use crate::{algorithms::graph_coarsening::CloudType, data_structures::graph::Graph};
 
-    use super::{CloudPartition, F};
+    use super::{CloudPartition, GraphCoarsening};
 
     #[test]
     fn test_cloud_partition() {
@@ -618,7 +608,7 @@ mod tests {
         );
 
         let cloud_part = CloudPartition::new(&graph);
-        let f = F::new(&cloud_part);
+        let f = GraphCoarsening::new(&cloud_part);
 
         assert_eq!(f.f.nodes, cloud_part.start.iter_1().count());
     }
