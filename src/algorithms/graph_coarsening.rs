@@ -48,7 +48,7 @@ impl<'b> CloudPartition<'b> {
     ```
     use star::data_structures::graph::Graph;
     use star::algorithms::graph_coarsening::CloudPartition;
-    use star::algorithms::graph_coarsening::F;
+    use star::algorithms::graph_coarsening::GraphCoarsening;
 
     let mut graph = Graph::new_with_edges(
         18,
@@ -91,7 +91,7 @@ impl<'b> CloudPartition<'b> {
     ```
     use star::data_structures::graph::Graph;
     use star::algorithms::graph_coarsening::CloudPartition;
-    use star::algorithms::graph_coarsening::F;
+    use star::algorithms::graph_coarsening::GraphCoarsening;
     use star::algorithms::graph_coarsening::CloudType;
 
     let mut graph = Graph::new_with_edges(
@@ -148,7 +148,7 @@ impl<'b> CloudPartition<'b> {
     ```
     use star::data_structures::graph::Graph;
     use star::algorithms::graph_coarsening::CloudPartition;
-    use star::algorithms::graph_coarsening::F;
+    use star::algorithms::graph_coarsening::GraphCoarsening;
 
     let mut graph = Graph::new_with_edges(
         18,
@@ -192,7 +192,7 @@ impl<'b> CloudPartition<'b> {
     ```
     use star::data_structures::graph::Graph;
     use star::algorithms::graph_coarsening::CloudPartition;
-    use star::algorithms::graph_coarsening::F;
+    use star::algorithms::graph_coarsening::GraphCoarsening;
 
     let mut graph = Graph::new_with_edges(
         18,
@@ -385,7 +385,7 @@ impl<'a> GraphCoarsening<'a> {
     ```
     use star::data_structures::graph::Graph;
     use star::algorithms::graph_coarsening::CloudPartition;
-    use star::algorithms::graph_coarsening::F;
+    use star::algorithms::graph_coarsening::GraphCoarsening;
 
     let mut graph = Graph::new_with_edges(
         18,
@@ -412,7 +412,7 @@ impl<'a> GraphCoarsening<'a> {
     );
 
     let cloud_part = CloudPartition::new(&graph);
-    let f = F::new(&cloud_part);
+    let f = GraphCoarsening::new(&cloud_part);
     ```
     */
     pub fn new(cloud_part: &'a CloudPartition) -> Self {
@@ -429,7 +429,7 @@ impl<'a> GraphCoarsening<'a> {
     ```
     use star::data_structures::graph::Graph;
     use star::algorithms::graph_coarsening::CloudPartition;
-    use star::algorithms::graph_coarsening::F;
+    use star::algorithms::graph_coarsening::GraphCoarsening;
 
     let mut graph = Graph::new_with_edges(
         18,
@@ -456,7 +456,7 @@ impl<'a> GraphCoarsening<'a> {
     );
 
     let cloud_part = CloudPartition::new(&graph);
-    let f = F::new(&cloud_part);
+    let f = GraphCoarsening::new(&cloud_part);
     let cloud_represented_by_node_5 = f.expand(5);
     ```
     */
