@@ -1,4 +1,5 @@
 use core::panic;
+use std::collections::HashMap;
 
 use crate::data_structures::{bitvec::FastBitvec, graph::Graph};
 
@@ -362,7 +363,7 @@ impl<'b> CloudPartition<'b> {
 pub struct GraphCoarsening<'a> {
     pub f: Graph,
     node_to_cloud: Vec<usize>,
-    cloud_to_node: Vec<usize>,
+    cloud_to_node: HashMap<usize, usize>,
     weights: Vec<usize>,
     cloud_part: &'a CloudPartition<'a>,
 }
@@ -372,7 +373,7 @@ impl<'a> GraphCoarsening<'a> {
         GraphCoarsening {
             f: Graph::new(),
             node_to_cloud: Vec::new(),
-            cloud_to_node: vec![usize::MAX; cloud_part.g.nodes],
+            cloud_to_node: HashMap::new(),
             weights: Vec::new(),
             cloud_part,
         }
@@ -473,7 +474,7 @@ impl<'a> GraphCoarsening<'a> {
             self.weights.push(cloud.len());
             let v_dash = *cloud.iter().min().unwrap();
             self.node_to_cloud.push(v_dash);
-            self.cloud_to_node[v_dash] = self.f.nodes - 1;
+            self.cloud_to_node.insert(v_dash, self.f.nodes - 1);
         });
     }
 
@@ -495,8 +496,16 @@ impl<'a> GraphCoarsening<'a> {
                         let v = c_dash.iter().min().unwrap();
                         let u = cloud.iter().min().unwrap();
 
-                        self.f
-                            .add_edge((self.cloud_to_node[*v], self.cloud_to_node[*u]));
+                        self.f.add_edge((
+                            *self
+                                .cloud_to_node
+                                .get(v)
+                                .expect("Entry not found in Hashmap"),
+                            *self
+                                .cloud_to_node
+                                .get(u)
+                                .expect("Entry not found in Hashmap"),
+                        ));
                     }
                 }
                 discovered.bitvec.fill(false);
