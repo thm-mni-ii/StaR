@@ -11,6 +11,8 @@ pub struct StandardBFS<'a> {
     graph: &'a Graph,
     visited: &'a mut FastBitvec,
     queue: VecDeque<usize>,
+    max_depth: Option<usize>,
+    already_visited: usize,
 }
 
 impl<'a> Iterator for StandardBFS<'a> {
@@ -27,13 +29,33 @@ impl<'a> Iterator for StandardBFS<'a> {
             return None;
         }
         let temp = self.queue.pop_front().unwrap();
-        //self.visited[temp] = true;
-        let neighbors = self.graph.neighbors(temp);
+        self.already_visited += 1;
 
-        for n in neighbors {
-            if !self.visited.get(*n) {
-                self.visited.set(*n, true);
-                self.queue.push_back(*n);
+        if self.max_depth.is_none()
+            || self.already_visited + self.queue.len() < self.max_depth.unwrap()
+        {
+            let neighbors = self.graph.neighbors(temp);
+            let needed_elements = if self.max_depth.is_none() {
+                neighbors.len()
+            } else {
+                let x = self.max_depth.unwrap() - self.already_visited - self.queue.len();
+                if x > neighbors.len() {
+                    neighbors.len()
+                } else {
+                    x
+                }
+            };
+
+            let neighbors: Vec<usize> = neighbors
+                .iter()
+                .filter(|n| !self.visited.get(**n))
+                .take(needed_elements)
+                .copied()
+                .collect();
+
+            for n in neighbors {
+                self.visited.set(n, true);
+                self.queue.push_back(n);
             }
         }
 
@@ -67,6 +89,24 @@ impl<'a> StandardBFS<'a> {
             graph,
             queue: VecDeque::new(),
             visited,
+            max_depth: None,
+            already_visited: 0,
+        }
+    }
+
+    pub fn new_with_depth(
+        graph: &'a Graph,
+        start: usize,
+        visited: &'a mut FastBitvec,
+        depth: usize,
+    ) -> Self {
+        Self {
+            start: Some(start),
+            graph,
+            queue: VecDeque::new(),
+            visited,
+            max_depth: Some(depth),
+            already_visited: 0,
         }
     }
 }
@@ -223,6 +263,48 @@ mod tests {
         assert_eq!(
             ChoiceDictBFS::new(&graph, 2).collect::<Vec<usize>>(),
             [2, 0, 1, 3, 4]
+        );
+    }
+
+    #[test]
+    fn test_whole_with_max_depth() {
+        let graph = Graph::new_with_edges(
+            6,
+            vec![
+                [3, 2].to_vec(),
+                [4, 2].to_vec(),
+                [0, 1].to_vec(),
+                [0].to_vec(),
+                [1].to_vec(),
+                [].to_vec(),
+            ],
+        );
+
+        assert_eq!(
+            StandardBFS::new_with_depth(&graph, 0, &mut FastBitvec::new(graph.nodes), 3)
+                .collect::<Vec<usize>>(),
+            [0, 3, 2]
+        );
+    }
+
+    #[test]
+    fn test_whole_other_start_with_max_depth() {
+        let graph = Graph::new_with_edges(
+            6,
+            vec![
+                [3, 2].to_vec(),
+                [4, 2].to_vec(),
+                [0, 1].to_vec(),
+                [0].to_vec(),
+                [1].to_vec(),
+                [].to_vec(),
+            ],
+        );
+
+        assert_eq!(
+            StandardBFS::new_with_depth(&graph, 2, &mut FastBitvec::new(graph.nodes), 3)
+                .collect::<Vec<usize>>(),
+            [2, 0, 1]
         );
     }
 }

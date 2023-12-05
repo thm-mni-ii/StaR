@@ -333,9 +333,8 @@ impl<'b> CloudPartition<'b> {
             let mut subgraph = Vec::new();
             let mut bfs_visited = FastBitvec::new(graph.nodes);
 
-            StandardBFS::new(&self.g_1, node, &mut bfs_visited)
+            StandardBFS::new_with_depth(&self.g_1, node, &mut bfs_visited, log)
                 .enumerate()
-                .take_while(|(i, _)| (*i + 1) <= log)
                 .map(|(_, n)| n)
                 .for_each(|n| {
                     visited.set(n, true);
