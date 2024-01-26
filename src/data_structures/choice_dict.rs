@@ -5,7 +5,7 @@ type BlockIdx = usize;
 type WordIdx = usize;
 type Color = usize;
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 /// A 2-color choice dictionary based on the ideas presented in <https://drops.dagstuhl.de/opus/volltexte/2018/10014/pdf/LIPIcs-ISAAC-2018-66.pdf>
 /// (DOI: 10.4230/LIPIcs.ISAAC.2018.66).
 ///
@@ -573,7 +573,7 @@ impl ChoiceDict {
 
     fn check_bounds(&self, idx: usize) {
         if idx >= self.size {
-            panic!("index out of bounds");
+            panic!("index {} out of bounds for length {}", idx, self.size);
         }
     }
 }

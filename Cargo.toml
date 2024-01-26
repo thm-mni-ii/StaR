@@ -6,6 +6,14 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+bitvec = "1"
+clap = { version = "4.3.0", features = ["derive"] }
+cpu-time = "1.0.0"
 
 [dev-dependencies]
 rand = "0.8.5"
+
+[[bin]]
+name = "star-cli"
+path = "src/cli.rs"
+test = false

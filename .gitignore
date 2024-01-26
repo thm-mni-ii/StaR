@@ -134,5 +134,14 @@ Cargo.lock
 # End of https://www.toptal.com/developers/gitignore/api/rust,clion
 
 mygraph.txt
+nohup.out
 doc
 *.dot
+tests
+*.data
+*.data.old
+flamegraph.svg
+.DS_Store
+*.csv
+*kahip
+test.txt

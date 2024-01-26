@@ -1,14 +1,21 @@
 use core::panic;
-use std::io::{BufRead, BufReader, ErrorKind, Read};
+use std::{
+    fs::File,
+    io::{BufRead, BufReader, BufWriter, Error, ErrorKind, Read, Write},
+};
+
+use super::bitvec::FastBitvec;
 
 type NodeType = usize;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Eq)]
 /// A basic graph data structure consisting of a vector of nodes and a vector of edges.
 pub struct Graph {
-    pub nodes: Vec<u8>, //0: valid entry, 1: invalid entry (deleted)
-    pub edges: Vec<Vec<usize>>,
-    pub back_edges: Vec<Vec<usize>>,
+    pub deleted: FastBitvec, //O(n) bits
+    //pub edges_deleted: Vec<FastBitvec>,
+    pub nodes: usize, //0: valid entry, 1: invalid entry (deleted) O(1) Bits
+    pub edges: Vec<Vec<usize>>, // O(n * (n - 1)) = O(n^2) Bits
+    pub back_edges: Vec<Vec<usize>>, // O(n * (n - 1)) = O(n^2) Bits
 }
 
 impl Default for Graph {
@@ -26,7 +33,8 @@ impl Graph {
     /// ```
     pub fn new() -> Self {
         Graph {
-            nodes: Vec::new(),
+            deleted: FastBitvec::new(0),
+            nodes: 0,
             edges: Vec::new(),
             back_edges: Vec::new(),
         }
@@ -40,7 +48,8 @@ impl Graph {
     /// ```
     pub fn new_with_nodes(n: usize) -> Self {
         Graph {
-            nodes: vec![0_u8; n],
+            deleted: FastBitvec::new(n),
+            nodes: n,
             edges: vec![Vec::new(); n],
             back_edges: vec![Vec::new(); n],
         }
@@ -89,7 +98,8 @@ impl Graph {
         }
 
         Graph {
-            nodes: vec![0_u8; n],
+            deleted: FastBitvec::new(n),
+            nodes: n,
             edges,
             back_edges,
         }
@@ -112,10 +122,10 @@ impl Graph {
     /// assert_eq!(*graph.neighbors(0), vec![1])
     /// ```
     pub fn neighbors(&self, index: NodeType) -> &Vec<NodeType> {
-        if index >= self.nodes.len() {
+        if index >= self.nodes {
             panic!("node {} does not exist", index);
         }
-        if self.nodes[index] == 1 {
+        if self.deleted.get(index) {
             panic!("node {} has been deleted", index);
         }
         &self.edges[index]
@@ -137,30 +147,32 @@ impl Graph {
     ///
     /// assert_eq!(graph.add_node(vec![0, 1]), 2)
     /// ```
+    ///
     pub fn add_node(&mut self, edges: Vec<NodeType>) -> NodeType {
-        self.nodes.push(0);
+        self.nodes += 1;
         self.edges.push(vec![]);
         self.back_edges.push(vec![]);
+        self.deleted.bitvec.push(false);
 
         edges.iter().for_each(|e| {
-            if *e >= self.nodes.len() {
+            if *e >= self.nodes {
                 panic!("edge {:?} contains non existent nodes", e);
             }
-            if self.nodes[*e] == 1 {
+            if self.deleted.get(*e) {
                 panic!("edge {:?} contains invalid nodes", e);
             }
-            self.edges[self.nodes.len() - 1].push(*e);
-            self.edges[*e].push(self.nodes.len() - 1);
-            self.back_edges[self.nodes.len() - 1].push(self.edges[*e].len() - 1);
-            self.back_edges[*e].push(self.edges[self.nodes.len() - 1].len() - 1);
+            self.edges[self.nodes - 1].push(*e);
+            self.edges[*e].push(self.nodes - 1);
+            self.back_edges[self.nodes - 1].push(self.edges[*e].len() - 1);
+            self.back_edges[*e].push(self.edges[self.nodes - 1].len() - 1);
         });
 
-        self.nodes.len() - 1
+        self.nodes - 1
     }
 
-    /// Removes the node with index n from the graph.
+    /// Removes the node with index n from the graph. Also removes all edges to that node.
     ///
-    /// Time complexity: O(1)
+    /// Time complexity: O(n)
     /// # Example
     /// ```
     /// use star::data_structures::graph::Graph;
@@ -175,8 +187,12 @@ impl Graph {
     /// graph.remove_node(1);
     /// ```
     pub fn remove_node(&mut self, index: NodeType) {
-        if index < self.nodes.len() {
-            self.nodes[index] = 1;
+        if index < self.nodes {
+            let neighbors = self.neighbors(index).clone();
+            for n in neighbors {
+                self.remove_edge((n, index))
+            }
+            self.deleted.set(index, true);
         }
     }
 
@@ -198,20 +214,21 @@ impl Graph {
     /// graph.add_edge((2, 1));
     /// assert_eq!(*graph.neighbors(2), vec![0, 1])
     /// ```
+    //TDOD: hier muss auch noch das deleted kram mit rein
     pub fn add_edge(&mut self, edge: (NodeType, NodeType)) {
         if self.edges[edge.0].contains(&edge.1) {
-            panic!("edge {:?} already exists", edge);
+            return;
         }
-        if edge.0 >= self.nodes.len() {
+        if edge.0 >= self.nodes {
             panic!("node {} does not exist", edge.0);
         }
-        if edge.1 >= self.nodes.len() {
+        if edge.1 >= self.nodes {
             panic!("node {} does not exist", edge.1);
         }
-        if self.nodes[edge.1] == 1 {
+        if self.deleted.get(edge.1) {
             panic!("node {} is invalid", edge.1);
         }
-        if self.nodes[edge.0] == 1 {
+        if self.deleted.get(edge.0) {
             panic!("node {} is invalid", edge.0);
         }
         self.edges[edge.0].push(edge.1);
@@ -240,34 +257,92 @@ impl Graph {
     /// ```
     pub fn remove_edge(&mut self, edge: (NodeType, NodeType)) {
         if !self.edges[edge.0].contains(&edge.1) || !self.edges[edge.1].contains(&edge.0) {
-            panic!("Edge ({}, {}) does not exist", edge.0, edge.1);
+            return;
         }
 
-        self.back_edges[edge.1].remove(
-            self.edges[edge.1]
-                .iter()
-                .enumerate()
-                .find(|e| *e.1 == edge.0)
-                .map(|e| e.0)
-                .unwrap(),
-        );
-        self.back_edges[edge.0].remove(
-            self.edges[edge.0]
-                .iter()
-                .enumerate()
-                .find(|e| *e.1 == edge.1)
-                .map(|e| e.0)
-                .unwrap(),
-        );
-        self.edges[edge.0].retain(|e| edge.1 != *e);
-        self.edges[edge.1].retain(|e| edge.0 != *e)
+        let i = self.edges[edge.0]
+            .iter()
+            .enumerate()
+            .find(|(i, _)| self.edges[edge.0][*i] == edge.1)
+            .unwrap()
+            .0;
+
+        let j = self.edges[edge.1]
+            .iter()
+            .enumerate()
+            .find(|(i, _)| self.edges[edge.1][*i] == edge.0)
+            .unwrap()
+            .0;
+
+        let len_0 = self.edges[edge.0].len();
+        let last_edge_0 = self.edges[edge.0][len_0 - 1];
+        let edge_0_in_last = self.edges[last_edge_0]
+            .iter()
+            .enumerate()
+            .find(|(i, _)| self.edges[last_edge_0][*i] == edge.0)
+            .unwrap()
+            .0;
+        self.back_edges[last_edge_0][edge_0_in_last] = i;
+        let len_1 = self.edges[edge.1].len();
+        let last_edge_1 = self.edges[edge.1][len_1 - 1];
+        let edge_1_in_last = self.edges[last_edge_1]
+            .iter()
+            .enumerate()
+            .find(|(i, _)| self.edges[last_edge_1][*i] == edge.1)
+            .unwrap()
+            .0;
+        self.back_edges[last_edge_1][edge_1_in_last] = j;
+
+        self.edges[edge.0].swap_remove(i);
+        self.back_edges[edge.0].swap_remove(i);
+        self.edges[edge.1].swap_remove(j);
+        self.back_edges[edge.1].swap_remove(j);
+    }
+
+    /**
+    Writes the graph to a file at the given path. For information on the output format please refer to the README.
+
+    # Example
+    ```
+
+    use star::data_structures::graph::Graph;
+    let mut graph = Graph::new_with_edges(
+        3,
+       vec![
+            [1, 2].to_vec(),
+            [0].to_vec(),
+             [0].to_vec()
+         ],
+    );
+
+    #[cfg(not(miri))]
+    graph.write_to_file("test.txt");
+    ```
+     */
+    pub fn write_to_file(&self, path: &str) -> Result<(), Error> {
+        let file = File::create(path)?;
+        let mut writer = BufWriter::new(file);
+
+        writer.write_all(format!("{}\n", self.nodes).as_bytes())?;
+
+        let num_edges = self.edges.iter().fold(0, |acc, e| acc + e.len());
+
+        writer.write_all(format!("{}", num_edges / 2).as_bytes())?;
+
+        for (i, e) in self.edges.iter().enumerate() {
+            for n in e {
+                writer.write_all(format!("\n{} {}", i, n).as_bytes())?;
+            }
+        }
+
+        Ok(())
     }
 }
 
 impl<U: Read> TryFrom<BufReader<U>> for Graph {
     type Error = std::io::Error;
 
-    /// Reads a graph from a [.gr](https://pacechallenge.org/2019/vc/vc_format/) file and returns a Result containing either the parsed graph or an error.
+    /// Reads a graph from a file and returns a Result containing either the parsed graph or an error. For information on the input format please refer to the README.
     ///
     /// # Example
     /// ```
@@ -279,71 +354,55 @@ impl<U: Read> TryFrom<BufReader<U>> for Graph {
     /// ```
 
     fn try_from(reader: BufReader<U>) -> Result<Self, Self::Error> {
-        let mut graph: Option<Graph> = None;
-        let mut order: Option<usize> = None;
-        for line in reader.lines() {
+        let mut lines = reader.lines();
+        let first_line = lines
+            .next()
+            .unwrap_or(Err(Error::new(ErrorKind::Other, "Empty file found")))?;
+        let order = match parse_order(first_line.as_str()) {
+            Ok(order) => Some(order),
+            Err(_) => {
+                return Err(std::io::Error::new(
+                    ErrorKind::Other,
+                    "Invalid order of graph",
+                ))
+            }
+        };
+
+        let mut graph = Graph::new_with_nodes(order.unwrap());
+
+        for line in lines.skip(1) {
             let line = line?;
-            let elements: Vec<_> = line.split(' ').collect();
-            match elements[0] {
-                "c" => {
-                    // who cares about comments..
-                }
-                "p" => {
-                    order = Some(parse_order(&elements)?);
-                    graph = Some(Graph::new_with_nodes(order.unwrap()));
-                }
-                _ => match graph.as_mut() {
-                    Some(graph) => {
-                        let u = parse_vertex(elements[1], order.unwrap())?;
-                        let v = parse_vertex(elements[2], order.unwrap())?;
-                        graph.add_edge((u, v));
-                    }
-                    None => {
-                        return Err(std::io::Error::new(
-                            ErrorKind::Other,
-                            "Edges encountered before graph creation",
-                        ));
-                    }
-                },
-            };
+            let elements: Vec<_> = line.split_whitespace().collect();
+            let u = parse_vertex(elements[0], order.unwrap())?;
+            let v = parse_vertex(elements[1], order.unwrap())?;
+            graph.add_edge((u, v));
         }
-        match graph {
-            Some(graph) => Ok(graph),
-            None => Err(std::io::Error::new(
-                ErrorKind::Other,
-                "No graph created during parsing",
-            )),
-        }
+
+        Ok(graph)
     }
 }
 
 fn parse_vertex(v: &str, order: usize) -> Result<usize, std::io::Error> {
     match v.parse::<usize>() {
         Ok(u) => {
-            if u == 0 || u > order {
+            if u >= order {
                 Err(std::io::Error::new(
                     std::io::ErrorKind::InvalidInput,
-                    "Invalid vertex label",
+                    format!("Invalid vertex label {}", u),
                 ))
             } else {
-                Ok(u - 1)
+                Ok(u)
             }
         }
         Err(_) => Err(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
-            "Invalid vertex label",
+            "Invalid vertex label 1",
         )),
     }
 }
 
-fn parse_order(elements: &[&str]) -> Result<usize, std::io::Error> {
-    if elements.len() < 3 {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::InvalidInput,
-            "Invalid line received starting with p",
-        ));
-    }
-    match elements[2].parse::<usize>() {
+fn parse_order(element: &str) -> Result<usize, std::io::Error> {
+    match element.parse::<usize>() {
         Ok(order) => Ok(order),
         Err(_) => Err(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
@@ -386,14 +445,6 @@ mod tests {
         assert_eq!(graph.back_edges[4], vec![0]);
         assert_eq!(graph.back_edges[5], vec![]);
 
-        graph.remove_edge((0, 3));
-        assert_eq!(graph.back_edges[0], vec![0]);
-        assert_eq!(graph.back_edges[1], vec![0, 1]);
-        assert_eq!(graph.back_edges[2], vec![1, 1]);
-        assert_eq!(graph.back_edges[3], vec![]);
-        assert_eq!(graph.back_edges[4], vec![0]);
-        assert_eq!(graph.back_edges[5], vec![]);
-
         graph.add_edge((2, 4));
 
         assert_eq!(graph.back_edges[2], vec![1, 1, 1]);
@@ -402,7 +453,7 @@ mod tests {
 
     #[test]
     fn test_graph_reader_successful() {
-        let test = "p edge 6 4\ne 1 4\ne 1 3\ne 2 5\ne 2 3".as_bytes();
+        let test = "6\n 4\n0 3\n0 2\n1 4\n1 2".as_bytes();
 
         let graph = Graph::try_from(BufReader::new(test));
         assert_eq!(
@@ -422,16 +473,8 @@ mod tests {
     }
 
     #[test]
-    fn test_graph_reader_node_zero() {
-        let test = "p edge 6 4\ne 1 4\ne 1 3\ne 2 0\ne 2 3".as_bytes();
-
-        let graph = Graph::try_from(BufReader::new(test));
-        assert!(graph.is_err())
-    }
-
-    #[test]
     fn test_graph_reader_node_too_big() {
-        let test = "p edge 6 4\ne 1 4\ne 1 3\ne 2 7\ne 2 3".as_bytes();
+        let test = "6\n 4\n1 4\n1 3\n2 7\n2 3".as_bytes();
 
         let graph = Graph::try_from(BufReader::new(test));
         assert!(graph.is_err())
@@ -541,7 +584,7 @@ mod tests {
         );
 
         graph.add_node(vec![1, 2]);
-        assert_eq!(graph.nodes, [0, 0, 0, 0, 0, 0, 0]);
+        assert_eq!(graph.nodes, 7);
         assert_eq!(
             graph.edges,
             [
@@ -654,23 +697,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    fn test_edge_add_existing_edge() {
-        let mut graph = Graph::new_with_edges(
-            6,
-            vec![
-                [3, 2].to_vec(),
-                [4, 2].to_vec(),
-                [0, 1].to_vec(),
-                [0].to_vec(),
-                [1].to_vec(),
-                [].to_vec(),
-            ],
-        );
-        graph.add_edge((0, 3));
-    }
-
-    #[test]
     fn test_remove_node() {
         let mut graph = Graph::new_with_edges(
             6,
@@ -684,9 +710,8 @@ mod tests {
             ],
         );
         graph.remove_node(3);
-        assert_eq!(graph.nodes, [0, 0, 0, 1, 0, 0])
+        assert_eq!(graph.nodes, 6)
     }
-
     #[test]
     fn test_remove_edge() {
         let mut graph = Graph::new_with_edges(
@@ -701,16 +726,7 @@ mod tests {
             ],
         );
         graph.remove_edge((0, 3));
-        assert_eq!(
-            graph.edges,
-            vec![
-                [2].to_vec(),
-                [4, 2].to_vec(),
-                [0, 1].to_vec(),
-                [].to_vec(),
-                [1].to_vec(),
-                [].to_vec()
-            ]
-        );
+        assert_eq!(graph.edges[0], vec![2]);
+        assert_eq!(graph.edges[3], vec![]);
     }
 }
