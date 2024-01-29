@@ -69,7 +69,7 @@ const AVAILABLE_COLORS: [&str; 63] = [
 ///
 /// # Example
 /// ```
-/// use star::data_structures::{graph::Graph, choice_dict::ChoiceDict};
+/// use star::data_structures::graph::Graph;
 /// use star::tools::graph_visualizer::dot_graph;
 /// let graph = Graph::new_with_edges(
 ///     6,

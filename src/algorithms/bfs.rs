@@ -1,4 +1,4 @@
-use crate::data_structures::{bitvec::FastBitvec, choice_dict::ChoiceDict, graph::Graph};
+use crate::data_structures::{bitvec::FastBitvec, graph::Graph};
 use std::collections::VecDeque;
 
 pub trait GraphLike {
@@ -111,110 +111,10 @@ impl<'a> StandardBFS<'a> {
     }
 }
 
-//----------------------------------------------------------------
-
-pub struct ChoiceDictBFS<'a> {
-    start: usize,
-    start_needed: bool,
-    node_with_neighbors_left: Option<usize>,
-    graph: &'a Graph,
-    colors: ChoiceDict,
-    colors_2: ChoiceDict,
-}
-
-/// An iterator iterating over nodes of a graph in a breadth-first-search order. Takes less space than a standard BFS. Based on: <https://arxiv.org/pdf/1812.10950.pdf>
-impl<'a> Iterator for ChoiceDictBFS<'a> {
-    type Item = usize;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.start_needed {
-            self.colors.set(self.start);
-            self.colors_2.set(self.start);
-            self.start_needed = false;
-
-            return Some(self.start);
-        }
-
-        let mut current_node = self.node_with_neighbors_left;
-
-        if self.node_with_neighbors_left.is_none() {
-            current_node = self.colors_2.choice_1();
-            current_node?;
-        }
-
-        let node = current_node.unwrap();
-        let mut ret: Option<usize> = None;
-
-        if node == self.start
-            || self.graph.neighbors(node).iter().any(|neighbor| {
-                self.colors_2.get(*neighbor) == 0 && self.colors.get(*neighbor) == 1
-            })
-        {
-            self.node_with_neighbors_left = Some(node);
-            for neighbor in self.graph.neighbors(node) {
-                if self.colors.get(*neighbor) == 0 {
-                    self.colors.set(*neighbor);
-                    self.colors_2.set(*neighbor);
-                    ret = Some(*neighbor);
-                    break;
-                }
-            }
-        }
-
-        if !self
-            .graph
-            .neighbors(node)
-            .iter()
-            .any(|neighbor| self.colors.get(*neighbor) == 0)
-        {
-            self.colors.set(node);
-            self.colors_2.remove(node);
-            self.node_with_neighbors_left = None;
-        }
-
-        if ret.is_some() {
-            return ret;
-        }
-
-        self.next()
-    }
-}
-
-impl<'a> ChoiceDictBFS<'a> {
-    /// Returns a new BFS iterator using Choice Dictionaries. Takes a reference to a graph and a starting node.
-    ///
-    /// Time complexity for the entire BFS: O(n+m), Space complexity: n * log(3) + O(log(n)^2)
-    /// # Example
-    /// ```
-    /// use star::algorithms::bfs::ChoiceDictBFS;
-    /// use star::data_structures::graph::Graph;
-    /// let graph = Graph::new_with_edges(
-    ///     2,
-    ///     vec![
-    ///         [0].to_vec(),
-    ///         [1].to_vec(),
-    ///     ],
-    /// );
-    ///
-    ///  ChoiceDictBFS::new(&graph, 0);
-    /// ```
-
-    pub fn new(graph: &'a Graph, start: usize) -> Self {
-        Self {
-            start,
-            start_needed: true,
-            node_with_neighbors_left: None,
-            graph,
-            colors: ChoiceDict::new(graph.nodes + 1),
-            colors_2: ChoiceDict::new(graph.nodes + 1),
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::{
-        algorithms::bfs::{ChoiceDictBFS, StandardBFS},
+        algorithms::bfs::StandardBFS,
         data_structures::{bitvec::FastBitvec, graph::Graph},
     };
 
@@ -236,10 +136,6 @@ mod tests {
             StandardBFS::new(&graph, 0, &mut FastBitvec::new(graph.nodes)).collect::<Vec<usize>>(),
             [0, 3, 2, 1, 4]
         );
-        assert_eq!(
-            ChoiceDictBFS::new(&graph, 0).collect::<Vec<usize>>(),
-            [0, 3, 2, 1, 4]
-        );
     }
 
     #[test]
@@ -258,10 +154,6 @@ mod tests {
 
         assert_eq!(
             StandardBFS::new(&graph, 2, &mut FastBitvec::new(graph.nodes)).collect::<Vec<usize>>(),
-            [2, 0, 1, 3, 4]
-        );
-        assert_eq!(
-            ChoiceDictBFS::new(&graph, 2).collect::<Vec<usize>>(),
             [2, 0, 1, 3, 4]
         );
     }
