@@ -15,7 +15,7 @@ impl<'a> Subgraph<'a> {
     ///
     ///  # Example
     ///  ```
-    /// use star::data_structures::{choice_dict::ChoiceDict, graph::Graph};
+    /// use star::data_structures::graph::Graph;
     /// use star::data_structures::subgraph::Subgraph;
     /// let graph = Graph::new_with_edges(
     ///     6,
@@ -57,7 +57,7 @@ impl<'a> Subgraph<'a> {
     ///
     /// # Example
     /// ```
-    /// use star::data_structures::{choice_dict::ChoiceDict, graph::Graph};
+    /// use star::data_structures::graph::Graph;
     /// use star::data_structures::subgraph::Subgraph;
     /// let graph = Graph::new_with_edges(
     ///     6,
@@ -143,7 +143,7 @@ impl<'a> Subgraph<'a> {
     ///
     /// # Example
     /// ```
-    /// use star::data_structures::{choice_dict::ChoiceDict, graph::Graph};
+    /// use star::data_structures::graph::Graph;
     /// use star::data_structures::subgraph::Subgraph;
     /// let graph = Graph::new_with_edges(
     ///     6,
