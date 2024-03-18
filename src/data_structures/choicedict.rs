@@ -777,6 +777,20 @@ mod tests {
     }
 
     #[test]
+    fn test_bug_42() {
+        // https://github.com/thm-mni-ii/StaR/issues/42
+        let mut dict = ChoiceDict::new(10000);
+        for i in 0..96 {
+            dict.set1(i);
+        }
+        for i in 9984..10000 {
+            assert_eq!(dict.get(i), 0);
+            dict.set1(i);
+            assert_eq!(dict.get(i), 1);
+        }
+    }
+
+    #[test]
     fn test_connect_and_disconnect() {
         let num_blocks = 2;
         let size = num_blocks * 3 * Word::BITS as usize;
