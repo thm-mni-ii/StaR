@@ -950,7 +950,7 @@ mod tests {
         assert_eq!(dict_indices_list, vec_indices_list);
     }
 
-    pub fn dict_to_vec(dict: &ChoiceDict) -> Vec<Word> {
+    fn dict_to_vec(dict: &ChoiceDict) -> Vec<Word> {
         let mut vec = vec![0; dict.size];
 
         for (i, v) in vec.iter_mut().enumerate() {
