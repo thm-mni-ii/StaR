@@ -334,11 +334,10 @@ impl<'b> CloudPartition<'b> {
             self.start.set(node, true);
             let mut subgraph = Vec::new();
 
-            StandardBFS::new_with_depth(&self.g_1, node, &mut bfs_visited, log)
-                .for_each(|n| {
-                    visited.set(n, true);
-                    subgraph.push(n);
-                });
+            StandardBFS::new_with_depth(&self.g_1, node, &mut bfs_visited, log).for_each(|n| {
+                visited.set(n, true);
+                subgraph.push(n);
+            });
 
             if subgraph.len() >= log {
                 subgraph.iter().for_each(|n| {
