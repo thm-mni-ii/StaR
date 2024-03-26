@@ -335,8 +335,6 @@ impl<'b> CloudPartition<'b> {
             let mut subgraph = Vec::new();
 
             StandardBFS::new_with_depth(&self.g_1, node, &mut bfs_visited, log)
-                .enumerate()
-                .map(|(_, n)| n)
                 .for_each(|n| {
                     visited.set(n, true);
                     subgraph.push(n);
