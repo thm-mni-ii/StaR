@@ -323,7 +323,7 @@ impl Graph {
         let file = File::create(path)?;
         let mut writer = BufWriter::new(file);
 
-        writer.write_all(format!("{}\n", self.nodes).as_bytes())?;
+        writer.write_all(format!("{}\n", self.nodes - self.deleted.iter_1().count()).as_bytes())?;
 
         let num_edges = self.edges.iter().fold(0, |acc, e| acc + e.len());
 

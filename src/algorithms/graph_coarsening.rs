@@ -324,22 +324,20 @@ impl<'b> CloudPartition<'b> {
 
     fn cloud_partition<'a>(&mut self, graph: &'a Graph, visited: &'a mut FastBitvec) {
         let log = (graph.nodes as f32).log2() as usize;
+        let mut bfs_visited = FastBitvec::new(graph.nodes);
         while let Some(node) = visited.choice_0() {
             if graph.deleted.get(node) {
                 visited.set(node, true);
                 continue;
             }
+
             self.start.set(node, true);
             let mut subgraph = Vec::new();
-            let mut bfs_visited = FastBitvec::new(graph.nodes);
 
-            StandardBFS::new_with_depth(&self.g_1, node, &mut bfs_visited, log)
-                .enumerate()
-                .map(|(_, n)| n)
-                .for_each(|n| {
-                    visited.set(n, true);
-                    subgraph.push(n);
-                });
+            StandardBFS::new_with_depth(&self.g_1, node, &mut bfs_visited, log).for_each(|n| {
+                visited.set(n, true);
+                subgraph.push(n);
+            });
 
             if subgraph.len() >= log {
                 subgraph.iter().for_each(|n| {
@@ -507,8 +505,8 @@ impl<'a> GraphCoarsening<'a> {
                         ));
                     }
                 }
-                discovered.bitvec.fill(false);
             }
+            discovered.bitvec.fill(false);
         }
     }
 }
