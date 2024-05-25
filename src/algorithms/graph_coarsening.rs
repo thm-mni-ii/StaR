@@ -79,8 +79,11 @@ impl<'b> CloudPartition<'b> {
     ```
      */
     pub fn new(graph: &'b Graph) -> Self {
+        let mut degrees: Vec<(usize, usize)> = graph.edges.iter().enumerate().map(|(i, d)| (i, d.len())).collect();
+
+        degrees.sort_by(|a, b| a.1.cmp(&b.1));
         let mut cloud_part = Self::new_empty(graph);
-        cloud_part.cloud_partition(graph, &mut FastBitvec::new(graph.nodes));
+        cloud_part.cloud_partition(graph, &mut FastBitvec::new(graph.nodes), &mut degrees);
 
         cloud_part
     }
@@ -322,20 +325,28 @@ impl<'b> CloudPartition<'b> {
         }
     }
 
-    fn cloud_partition<'a>(&mut self, graph: &'a Graph, visited: &'a mut FastBitvec) {
+    fn cloud_partition<'a>(&mut self, graph: &'a Graph, visited: &'a mut FastBitvec, degrees: &Vec<(usize, usize)>) {
         let log = (graph.nodes as f32).log2() as usize;
         let mut bfs_visited = FastBitvec::new(graph.nodes);
-        while let Some(node) = visited.choice_0() {
+        
+        let mut counter = 0;
+        
+        while let Some(node) = visited.choice_0_1(degrees) {
+            if counter == 1000 {
+                println!("nodes left: {}, {:?}", visited.iter_0().count(), degrees[0]);
+                counter = 0;
+            }
+            counter += 1;
             if graph.deleted.get(node) {
-                visited.set(node, true);
+                visited.set_0(node, true, degrees);
                 continue;
             }
 
-            self.start.set(node, true);
+            self.start.set_0(node, true, degrees);
             let mut subgraph = Vec::new();
 
             StandardBFS::new_with_depth(&self.g_1, node, &mut bfs_visited, log).for_each(|n| {
-                visited.set(n, true);
+                visited.set_0(n, true, degrees);
                 subgraph.push(n);
             });
 
@@ -514,7 +525,18 @@ impl<'a> GraphCoarsening<'a> {
 #[cfg(test)]
 mod tests {
 
-    use crate::{algorithms::graph_coarsening::CloudType, data_structures::graph::Graph};
+    use std::{
+        fs::{self, File, OpenOptions},
+        io::{BufReader, Write},
+    };
+
+    use cpu_time::ProcessTime;
+    use rand::Rng;
+
+    use crate::{
+        algorithms::{bfs::StandardBFS, graph_coarsening::CloudType},
+        data_structures::{bitvec::FastBitvec, graph::Graph},
+    };
 
     use super::{CloudPartition, GraphCoarsening};
 
@@ -717,5 +739,185 @@ mod tests {
         assert!(!cloud_part.border(0, 1));
         assert!(cloud_part.border(7, 6));
         assert!(cloud_part.border(8, 7));
+    }
+
+    #[test]
+    fn test_all() {
+        fs::write(
+            "./results.csv",
+            "nodes;edges;time;big;small;critical;bridge;leaf",
+        )
+        .unwrap();
+
+        for file in fs::read_dir("/home/nina/Testgraphen/real_world_non_planar_graphs/social_graphs/")
+            .expect("no such directory")
+        {
+            let asd = file.unwrap().file_name();
+            let file_name = asd.to_str().unwrap();
+            let f = File::open(format!(
+                "/home/nina/Testgraphen/real_world_non_planar_graphs/social_graphs/{}",
+                file_name
+            ))
+            .expect("file not found");
+            let buf_read = BufReader::new(f);
+            let mut graph = Graph::try_from(buf_read).unwrap();
+
+            println!("graph parsed");
+
+            for i in 0..graph.nodes {
+                if graph.neighbors(i).len() == 1 {
+                    graph.remove_node(i)
+                }
+            }
+            //delete_arbitrary_amount_of_edges(&mut graph);
+            find_largest_connected_component(&mut graph);
+            println!("largest connected component found");
+            let num_edges = graph.edges.iter().map(|n| n.len()).sum::<usize>() / 2;
+
+            let start = ProcessTime::now();
+            let cloud_part = CloudPartition::new(&graph);
+            println!("graph partitioned");
+            let end = start.elapsed();
+
+            let big = cloud_part
+                .start
+                .iter_1()
+                .filter(|n| cloud_part.big.get(*n))
+                .count();
+
+            let critical = cloud_part
+                .start
+                .iter_1()
+                .filter(|i| cloud_part.critical.get(*i))
+                .count();
+
+            let bridge = cloud_part
+                .start
+                .iter_1()
+                .filter(|i| cloud_part.bridge.get(*i))
+                .count();
+
+            let leaf = cloud_part
+                .start
+                .iter_1()
+                .filter(|i| cloud_part.leaf.get(*i))
+                .count();
+
+            let small = cloud_part
+                .start
+                .iter_1()
+                .filter(|i| cloud_part.small.get(*i))
+                .count();
+
+            let mut res = OpenOptions::new()
+                .write(true)
+                .append(true)
+                .open("./results.csv")
+                .unwrap();
+
+            res.write_all(
+                format!(
+                    "\n{};{};{:?};{};{};{};{};{}",
+                    graph.nodes - graph.deleted.iter_1().count(),
+                    num_edges,
+                    end,
+                    big,
+                    small,
+                    critical,
+                    bridge,
+                    leaf,
+                )
+                .as_bytes(),
+            )
+            .expect("write failed");
+
+            fs::write(
+                format!("./graph_{}.csv", file_name),
+                "node;type;degree",
+            )
+            .unwrap();
+
+            let mut graph_file = OpenOptions::new()
+                .write(true)
+                .append(true)
+                .open(format!("./graph_{}.csv", file_name))
+                .unwrap();
+
+            for i in 0..graph.nodes {
+                if graph.deleted.get(i) {
+                    continue;
+                }
+                let t = if cloud_part.big.get(i) {
+                    1
+                } else if cloud_part.critical.get(i) {
+                    2
+                } else if cloud_part.bridge.get(i) {
+                    3
+                } else if cloud_part.leaf.get(i) {
+                    4
+                } else {
+                    panic!("invalid cloud type")
+                };
+                graph_file
+                    .write_all(format!("\n{};{};{};", i, t, graph.neighbors(i).len()).as_bytes())
+                    .expect("write failed");
+            }
+        }
+    }
+
+   
+
+    fn _delete_arbitrary_amount_of_edges(g: &mut Graph) {
+        let n = rand::thread_rng().gen_range(0..20_000_000);
+        println!("n: {}", n);
+        for _ in 0..n {
+            let u = rand::thread_rng().gen_range(0..g.nodes);
+            if g.edges[u].is_empty() {
+                continue;
+            }
+            let v = rand::thread_rng().gen_range(0..g.edges[u].len());
+            g.remove_edge((u, g.edges[u][v]));
+        }
+
+        for n in 0..g.nodes {
+            if g.edges[n].is_empty() {
+                g.remove_node(n)
+            }
+        }
+    }
+
+    fn find_largest_connected_component(g: &mut Graph) {
+        let mut visited = FastBitvec::new(g.nodes);
+        let mut largest = 0_usize;
+        let mut index_largest = 0_usize;
+        let mut largest_component = FastBitvec::new(g.nodes);
+
+        while let Some(n) = visited.choice_0() {
+            if g.deleted.get(n) {
+                visited.set(n, true);
+                continue;
+            }
+            let mut bfs_visited = FastBitvec::new(g.nodes);
+            let len = StandardBFS::new(g, n, &mut bfs_visited)
+                .map(|v| {
+                    visited.set(v, true);
+                    v
+                })
+                .count();
+
+            if len > largest {
+                largest = len;
+                index_largest = n;
+            }
+        }
+
+        StandardBFS::new(g, index_largest, &mut FastBitvec::new(g.nodes))
+            .for_each(|n| largest_component.set(n, true));
+
+        for i in 0..g.nodes {
+            if !largest_component.get(i) && !g.deleted.get(i) {
+                g.remove_node(i);
+            }
+        }
     }
 }

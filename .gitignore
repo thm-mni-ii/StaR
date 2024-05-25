@@ -145,3 +145,5 @@ flamegraph.svg
 *.csv
 *kahip
 test.txt
+res
+res.tar.xz

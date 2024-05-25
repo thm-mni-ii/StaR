@@ -354,7 +354,7 @@ impl<U: Read> TryFrom<BufReader<U>> for Graph {
     /// ```
 
     fn try_from(reader: BufReader<U>) -> Result<Self, Self::Error> {
-        let mut lines = reader.lines();
+        let mut lines = reader.lines().skip(1);
         let first_line = lines
             .next()
             .unwrap_or(Err(Error::new(ErrorKind::Other, "Empty file found")))?;
@@ -375,7 +375,7 @@ impl<U: Read> TryFrom<BufReader<U>> for Graph {
             let elements: Vec<_> = line.split_whitespace().collect();
             let u = parse_vertex(elements[0], order.unwrap())?;
             let v = parse_vertex(elements[1], order.unwrap())?;
-            graph.add_edge((u, v));
+            graph.add_edge((u - 1, v - 1));
         }
 
         Ok(graph)
@@ -385,7 +385,7 @@ impl<U: Read> TryFrom<BufReader<U>> for Graph {
 fn parse_vertex(v: &str, order: usize) -> Result<usize, std::io::Error> {
     match v.parse::<usize>() {
         Ok(u) => {
-            if u >= order {
+            if u > order {
                 Err(std::io::Error::new(
                     std::io::ErrorKind::InvalidInput,
                     format!("Invalid vertex label {}", u),
@@ -402,7 +402,7 @@ fn parse_vertex(v: &str, order: usize) -> Result<usize, std::io::Error> {
 }
 
 fn parse_order(element: &str) -> Result<usize, std::io::Error> {
-    match element.parse::<usize>() {
+    match element.split_whitespace().next().unwrap().parse::<usize>() {
         Ok(order) => Ok(order),
         Err(_) => Err(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,

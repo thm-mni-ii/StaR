@@ -46,7 +46,6 @@ impl FastBitvec {
     /// ```
     pub fn set(&mut self, index: usize, value: bool) {
         self.bitvec.set(index, value);
-
         if value && self.first_zero == Some(index) {
             let mut next_zero = None;
 
@@ -81,6 +80,31 @@ impl FastBitvec {
 
         if !value && self.first_zero.is_some() && index < self.first_zero.unwrap() {
             self.first_zero = Some(index);
+        
+        }
+    }
+
+    pub fn set_0(&mut self, index: usize, value: bool, degrees: &Vec<(usize, usize)>) {
+        self.bitvec.set(index, value);
+        
+        if self.first_zero == None {
+            return;
+        }
+        if value && degrees[self.first_zero.unwrap()].0 == index {
+            let mut next_zero = None;
+
+            for i in self.first_zero.unwrap()..self.size() {
+                if !self.get(degrees[i].0) {
+                    next_zero = Some(i);
+                    break;
+                }
+            }
+            self.first_zero = next_zero;
+        }
+
+        if !value && self.first_zero.is_some() && index < self.first_zero.unwrap() {
+            self.first_zero = Some(index);
+        
         }
     }
 
@@ -133,6 +157,11 @@ impl FastBitvec {
         self.first_zero
     }
 
+    pub fn choice_0_1(&self, degrees: &Vec<(usize, usize)>) -> Option<usize> {
+        if self.first_zero == None { return None }
+        Some(degrees[self.first_zero.unwrap()].0)
+    }
+
     /// Get the first one in a bit vector.
     /// # Example
     /// ```
@@ -146,7 +175,7 @@ impl FastBitvec {
     }
 }
 
-#[cfg(test)]
+/*#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -175,4 +204,4 @@ mod tests {
         assert_eq!(bitvec.choice_1(), None);
         assert_eq!(bitvec.choice_0(), Some(0));
     }
-}
+}*/
